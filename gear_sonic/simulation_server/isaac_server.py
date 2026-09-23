@@ -55,6 +55,7 @@ class MuJoCoCameraSpec:
     local_position: tuple[float, float, float]
     local_euler_xyz: tuple[float, float, float]
     source_path: Path
+    vertical_fov_degrees: float = 45.0
 
 
 def ensure_isaac_assets_bypass_proxy(environ: dict[str, str] | None = None) -> bool:
@@ -107,6 +108,8 @@ def load_mujoco_camera_spec(
                 local_position=position,
                 local_euler_xyz=euler,
                 source_path=source_path,
+                # MJCF fovy is in degrees, including when compiler angle is radian.
+                vertical_fov_degrees=float(child.get("fovy", "45")),
             )
     raise ValueError(f"MuJoCo camera {camera_name!r} was not found in {source_path}")
 
@@ -343,6 +346,7 @@ class IsaacImagePublisher:
         image_dt: float = 1.0 / 60.0,
         verbose: bool = True,
         local_translation: tuple[float, float, float] = (0.06, 0.0, 0.25),
+        ego_camera_intrinsics: tuple[float, float, float, float] | None = None,
     ):
         self.port = int(port)
         self.camera_name = str(camera_name)
@@ -354,6 +358,28 @@ class IsaacImagePublisher:
             )
         self.width = int(width)
         self.height = int(height)
+        # Nominal RGB K in pixels at this camera resolution, not depth K.
+        intrinsics = np.asarray(
+            (620.80, 625.22, 320.0, 240.0)
+            if ego_camera_intrinsics is None else ego_camera_intrinsics,
+            dtype=np.float64,
+        )
+        if ego_camera_intrinsics is None:
+            # Preserve direct callers using smaller images: resize the 640x480
+            # reference K. This does not select a different hardware profile.
+            intrinsics *= (self.width / 640.0, self.height / 480.0) * 2
+        if self.camera_name == "ego_view" and (
+            intrinsics.shape != (4,)
+            or not np.all(np.isfinite(intrinsics))
+            or np.any(intrinsics[:2] <= 0)
+            or not 0 <= intrinsics[2] < self.width
+            or not 0 <= intrinsics[3] < self.height
+        ):
+            raise ValueError(
+                "ego_camera_intrinsics must be finite (fx>0, fy>0, cx, cy) "
+                "with an in-image principal point"
+            )
+        self.ego_camera_intrinsics = tuple(float(value) for value in intrinsics)
         self.image_dt = float(image_dt)
         self.verbose = bool(verbose)
         self.local_translation = np.asarray(local_translation, dtype=np.float32)
@@ -409,7 +435,9 @@ class IsaacImagePublisher:
     def publish(self, *, backend: "IsaacSimulationBackend", timestamp: float | None = None) -> None:
         if self.sensor_server is None:
             return
-        from gear_sonic.utils.mujoco_sim.sensor_server import ImageMessageSchema, ImageUtils
+        from gear_sonic.utils.mujoco_sim.sensor_server import (
+            ImageMessageSchema,
+        )
 
         image = self._read_camera_image()
         # ``World.reset()`` (for example Isaac's backspace reset path) can
@@ -437,8 +465,10 @@ class IsaacImagePublisher:
         )
         serialized_data = image_msg.serialize()
         # MuJoCo's ImagePublishProcess also includes a legacy top-level key
-        # with the same JPEG payload. Keep it for byte-schema compatibility.
-        serialized_data[self.camera_name] = ImageUtils.encode_image(image)
+        # with the same JPEG payload. Reuse it without encoding a second time.
+        serialized_data[self.camera_name] = (
+            serialized_data['images'][self.camera_name]
+        )
         self.sensor_server.send_message(serialized_data)
 
     def _recover_camera_after_world_reset(self, backend: "IsaacSimulationBackend") -> None:
@@ -453,6 +483,7 @@ class IsaacImagePublisher:
             initialize = getattr(self.camera, "initialize", None)
             if callable(initialize):
                 initialize()
+            self._configure_ego_camera_optics()
             if backend.world is not None:
                 # The camera annotator receives data only after rendered
                 # frames following initialization.  Do not call world.reset:
@@ -462,6 +493,38 @@ class IsaacImagePublisher:
             print("[IsaacImagePublisher] recovered camera after all-zero frame read")
         except Exception as exc:
             print(f"[IsaacImagePublisher] warning: camera recovery failed: {exc!r}")
+
+    def _configure_ego_camera_optics(self) -> None:
+        """Apply the FluxBisim RGB-intrinsics convention to the ego camera only."""
+        if self.camera is None or self._mujoco_camera_spec is None:
+            return
+        fx, fy, cx, cy = self.ego_camera_intrinsics
+        # FluxBisim selects a virtual 3 um pixel pitch and one mean focal
+        # length. It approximates K; it does not reproduce unequal fx/fy.
+        pixel_size_mm = 0.003
+        mean_focal_px = (fx + fy) / 2.0
+        self.camera.set_focal_length(mean_focal_px * pixel_size_mm / 10.0)
+        self.camera.set_horizontal_aperture(self.width * pixel_size_mm / 10.0)
+        self.camera.set_vertical_aperture(self.height * pixel_size_mm / 10.0)
+        # Keep the centered case as an ordinary pinhole. For a calibrated
+        # off-center principal point use FluxBisim's polynomial approximation.
+        if cx == self.width / 2.0 and cy == self.height / 2.0:
+            self.camera.set_projection_type("pinhole")
+        else:
+            diagonal = 2.0 * np.hypot(max(cx, self.width - cx), max(cy, self.height - cy))
+            diagonal_fov = float(np.rad2deg(2.0 * np.arctan2(diagonal, fx + fy)))
+            self.camera.set_projection_type("fisheyePolynomial")
+            self.camera.set_rational_polynomial_properties(
+                self.width, self.height, cx, cy, diagonal_fov, np.zeros(8)
+            )
+        # Preserve the existing clip planes, pose, and GUI Perspective camera.
+        self.camera.set_clipping_range(near_distance=0.02, far_distance=100.0)
+        print(
+            "[IsaacImagePublisher] ego RGB optics (FluxBisim mean-focal approximation): "
+            f"requested_fx_fy_cx_cy={self.ego_camera_intrinsics} "
+            f"effective_fx_fy=({mean_focal_px}, {mean_focal_px}) "
+            f"resolution=({self.width}, {self.height})"
+        )
 
     def _try_create_camera(self, backend: "IsaacSimulationBackend") -> None:
         if self.camera_source == "gui_perspective":
@@ -520,6 +583,7 @@ class IsaacImagePublisher:
             initialize = getattr(self.camera, "initialize", None)
             if initialize is not None:
                 initialize()
+            self._configure_ego_camera_optics()
             if backend.world is not None:
                 # Camera's RGB annotator is populated asynchronously.  A
                 # single rendered frame is not reliable on the first Isaac
@@ -537,6 +601,8 @@ class IsaacImagePublisher:
                 f"local_translation={local_translation.tolist()} "
                 f"parent_world_xyz={parent_world_xyz} camera_world_xyz={camera_world_xyz} "
                 f"local_euler={local_euler_xyz.tolist()} camera_axes=usd "
+                f"mjcf_reference_fovy_degrees={self._mujoco_camera_spec.vertical_fov_degrees if self._mujoco_camera_spec else None} "
+                f"clipping_range={self.camera.get_clipping_range()} "
                 f"mujoco_source={self._mujoco_camera_spec.source_path if self._mujoco_camera_spec else None}"
             )
         except Exception as exc:
@@ -779,7 +845,17 @@ class IsaacImagePublisher:
             image = np.asarray(self._gui_rgb_annotator.get_data())
             if image.size == 0:
                 return self._fallback_frame
-            if image.ndim == 3 and image.shape[-1] >= 3:
+            if (
+                image.ndim == 3
+                and image.shape[-1] == 4
+                and image.dtype == np.uint8
+            ):
+                import cv2
+
+                # Drop alpha into packed RGB before resizing to avoid a slow
+                # implicit copy of the strided three-channel view.
+                image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+            elif image.ndim == 3 and image.shape[-1] >= 3:
                 image = image[..., :3]
             if image.ndim != 3 or image.shape[-1] != 3:
                 return self._fallback_frame
@@ -1184,6 +1260,7 @@ class IsaacElasticBandState:
     kp_ang: float = 1000.0
     kd_ang: float = 10.0
     point: np.ndarray = field(default_factory=lambda: np.asarray([0.0, 0.0, 1.0], dtype=np.float32))
+    target_yaw: float = 0.0  # World Z heading in radians; zero preserves the original behavior.
     length: float = 0.0
     enabled: bool = True
     target_link: str = ""
@@ -1203,7 +1280,11 @@ class IsaacElasticBandState:
         delta_x = self.point - position
         force = self.kp_pos * (delta_x + np.asarray([0.0, 0.0, self.length], dtype=np.float32))
         force = force + self.kd_pos * (-linear_velocity)
-        rotvec = _quat_wxyz_to_rotvec(orientation_wxyz)
+        # q_current * inverse(q_target): orientation error in world coordinates,
+        # matching the frame of the applied torque and angular velocity.
+        w, x, y, z = orientation_wxyz
+        c, s = np.cos(self.target_yaw / 2.0), np.sin(self.target_yaw / 2.0)
+        rotvec = _quat_wxyz_to_rotvec([c * w + s * z, c * x - s * y, c * y + s * x, c * z - s * w])
         torque = -self.kp_ang * rotvec - self.kd_ang * angular_velocity
         self.force = np.asarray(force, dtype=np.float32)
         self.torque = np.asarray(torque, dtype=np.float32)
@@ -1215,6 +1296,7 @@ class IsaacElasticBandState:
             "elastic_band_target_link": self.target_link,
             "elastic_band_target_prim_path": self.target_prim_path,
             "elastic_band_anchor": [float(x) for x in self.point],
+            "elastic_band_target_yaw": float(self.target_yaw),
             "elastic_band_length": float(self.length),
             "elastic_band_force": [float(x) for x in self.force],
             "elastic_band_torque": [float(x) for x in self.torque],
@@ -1322,6 +1404,9 @@ class IsaacSimulationBackend:
         self.simulation_app = None
         self.world = None
         self.ground_plane = None
+        self.scene_reset_bodies: list[Any] = []
+        self.episode_collector = None
+        self._scene_randomization: dict[str, tuple[np.ndarray, np.ndarray, float]] = {}
         self.articulation = None
         self.articulation_root_path: str | None = None
         self.joint_mapping: IsaacJointMappingResult | None = None
@@ -1378,7 +1463,7 @@ class IsaacSimulationBackend:
 
         import omni.usd
         from isaacsim.core.api import World
-        from isaacsim.core.prims import RigidPrim, SingleArticulation
+        from isaacsim.core.prims import RigidPrim, SingleArticulation, SingleRigidPrim
         from isaacsim.core.utils.prims import get_articulation_root_api_prim_path
         from isaacsim.core.utils.stage import add_reference_to_stage, get_current_stage, update_stage
         from pxr import UsdPhysics
@@ -1420,7 +1505,39 @@ class IsaacSimulationBackend:
                 name="sonic_g1_elastic_band_target",
             )
         )
+        # Tagged task objects use PhysX state for reset, rather than USD xforms
+        # alone, so moving bodies also have their velocities cleared.
+        self.scene_reset_bodies = []
+        self._scene_randomization = {}
+        for prim in get_current_stage().Traverse():
+            if not prim.GetAttribute("wbc:resetOnBackspace").Get():
+                continue
+            if not prim.HasAPI(UsdPhysics.RigidBodyAPI):
+                raise ValueError(f"Backspace reset requires a rigid body: {prim.GetPath()}")
+            self.scene_reset_bodies.append(
+                self.world.scene.add(
+                    SingleRigidPrim(
+                        prim_path=str(prim.GetPath()),
+                        name=f"wbc_scene_body_{len(self.scene_reset_bodies)}",
+                    )
+                )
+            )
+            radius = prim.GetAttribute("wbc:randomizationRadius").Get()
+            if radius is not None:
+                radius = float(radius)
+                if not np.isfinite(radius) or radius < 0:
+                    raise ValueError(f"Invalid randomization radius on {prim.GetPath()}: {radius}")
+                body = self.scene_reset_bodies[-1]
+                # Radius zero explicitly fixes the authored spawn pose.
+                # Snapshot recapture must never move the sampling center.
+                position, orientation = body.get_world_pose()
+                self._scene_randomization[body.prim_path] = (
+                    np.asarray(position).copy(), np.asarray(orientation).copy(), radius
+                )
+        if self.episode_collector is not None:
+            self.episode_collector.prepare_scene()
         self.world.reset()
+        self._reset_scene_bodies(randomized_only=True)
 
         for _ in range(max(0, self.startup_steps)):
             self.world.step(render=not self.headless)
@@ -1539,6 +1656,9 @@ class IsaacSimulationBackend:
         """Close Isaac resources."""
 
         self._running = False
+        if self.episode_collector is not None:
+            self.episode_collector.close()
+            self.episode_collector = None
         if self.keyboard_subscriber is not None:
             self.keyboard_subscriber.stop()
             self.keyboard_subscriber = None
@@ -1608,6 +1728,7 @@ class IsaacSimulationBackend:
         if reset_world:
             with self._control_lock:
                 self.world.reset()
+                self._reset_scene_bodies(randomized_only=True)
                 self._sim_time = 0.0
                 self._validate_joint_mapping()
                 report["sequence"].append({"operation": "reset", "steps": 0})
@@ -1698,6 +1819,7 @@ class IsaacSimulationBackend:
         width: int = 640,
         height: int = 480,
         local_translation: tuple[float, float, float] = (0.06, 0.0, 0.25),
+        ego_camera_intrinsics: tuple[float, float, float, float] | None = None,
     ) -> None:
         """Start Isaac's MuJoCo-compatible camera publisher.
 
@@ -1725,6 +1847,7 @@ class IsaacSimulationBackend:
             height=height,
             image_dt=image_dt,
             local_translation=local_translation,
+            ego_camera_intrinsics=ego_camera_intrinsics,
         )
         publisher.start(self)
         self.image_publish_process = publisher
@@ -1817,12 +1940,24 @@ class IsaacSimulationBackend:
                 if duration_s is not None and time.monotonic() - start_time >= duration_s:
                     break
 
-                render_for_publishers = self.image_publish_process is not None
-                self.step(render=(not self.headless) or render_for_publishers)
+                collector = self.episode_collector
+                if collector is not None:
+                    collector.before_step()
+                frozen = collector is not None and collector.frozen
+                render_for_publishers = self.image_publish_process is not None or collector is not None
+                if frozen:
+                    # Keep GUI and DDS responsive without advancing the reset pose
+                    # or applying stale teleop commands while waiting for manual A+X.
+                    self.world.render()
+                    active_command = None
+                else:
+                    self.step(render=(not self.headless) or render_for_publishers)
                 performance_monitor = getattr(bridge, "performance_monitor", None)
                 if performance_monitor is not None:
                     performance_monitor.record_physics_step()
                 state = self.read_joint_state()
+                if collector is not None and not frozen:
+                    collector.after_step(state, bridge)
                 if self.image_publish_process is not None:
                     self.image_publish_process.maybe_publish(self)
                 if self.realtime_state_publisher is not None:
@@ -1836,6 +1971,12 @@ class IsaacSimulationBackend:
                 elif active_command is not None:
                     active_command = bridge.peek_low_cmd() or active_command
 
+                if collector is not None and (collector.frozen or (
+                    active_command is not None and active_command.received_time < collector.resume_wall_time
+                )):
+                    active_command = None
+                if active_command is not None and not bridge.is_command_current(active_command):
+                    active_command = None
                 if active_command is not None:
                     bridge.apply_joint_command(active_command)
                 if self.keyboard_subscriber is not None:
@@ -1890,6 +2031,8 @@ class IsaacSimulationBackend:
             self.set_elastic_band_enabled(not self.elastic_band.enabled)
             return
         if normalized in ("backspace", "\b", "\x7f"):
+            if self.episode_collector is not None and self.episode_collector.request_manual_reset():
+                return
             self.mujoco_backspace_reset()
             return
         print(f"[IsaacBackend] keyboard command not handled by Isaac backend: {key!r}")
@@ -1925,6 +2068,7 @@ class IsaacSimulationBackend:
             before = self.read_joint_state().as_dict()
             band_before = bool(self.elastic_band.enabled)
             self._restore_scene_xform_ops(snapshot.scene_xform_ops)
+            self._reset_scene_bodies()
             self.articulation.set_world_pose(
                 position=np.asarray(snapshot.root_position, dtype=np.float32),
                 orientation=np.asarray(snapshot.root_quaternion, dtype=np.float32),
@@ -1933,6 +2077,8 @@ class IsaacSimulationBackend:
             self.articulation.set_joint_velocities(np.asarray(snapshot.joint_velocity, dtype=np.float32))
             self.articulation.set_linear_velocity(np.asarray(snapshot.root_linear_velocity, dtype=np.float32))
             self.articulation.set_angular_velocity(np.asarray(snapshot.root_angular_velocity, dtype=np.float32))
+            if self.dds_bridge is not None:
+                self.dds_bridge.discard_episode_commands()
             self.elastic_band.force = np.zeros(3, dtype=np.float32)
             self.elastic_band.torque = np.zeros(3, dtype=np.float32)
             after = self.read_joint_state().as_dict()
@@ -1949,6 +2095,29 @@ class IsaacSimulationBackend:
                 "[IsaacBackend] MuJoCo Backspace reset applied "
                 f"snapshot={snapshot.source!r} elastic_band_preserved={self.elastic_band.enabled}"
             )
+
+    def _reset_scene_bodies(self, *, randomized_only: bool = False) -> None:
+        """Reset tagged bodies; sample configured disks uniformly by area."""
+        for body in self.scene_reset_bodies:
+            randomization = self._scene_randomization.get(body.prim_path)
+            if randomization is not None:
+                center, orientation, radius = randomization
+                # Same sampling rule as FluxBisim/tasks/utils.py.
+                position = center.copy()
+                if radius > 0:
+                    theta = np.random.uniform(0.0, 2.0 * np.pi)
+                    distance = radius * np.sqrt(np.random.uniform(0.0, 1.0))
+                    position[0] += distance * np.cos(theta)
+                    position[1] += distance * np.sin(theta)
+                body.set_default_state(
+                    position=position,
+                    orientation=orientation.copy(),
+                    linear_velocity=np.zeros(3, dtype=np.float32),
+                    angular_velocity=np.zeros(3, dtype=np.float32),
+                )
+            elif randomized_only:
+                continue
+            body.post_reset()
 
     def _capture_backspace_snapshot(
         self,
@@ -1973,6 +2142,17 @@ class IsaacSimulationBackend:
             root_linear_velocity = self.articulation.get_linear_velocity()
         if root_angular_velocity is None:
             root_angular_velocity = self.articulation.get_angular_velocity()
+
+        for body in self.scene_reset_bodies:
+            if body.prim_path in self._scene_randomization:
+                continue
+            position, orientation = body.get_world_pose()
+            body.set_default_state(
+                position=np.asarray(position).copy(),
+                orientation=np.asarray(orientation).copy(),
+                linear_velocity=np.zeros(3, dtype=np.float32),
+                angular_velocity=np.zeros(3, dtype=np.float32),
+            )
 
         self._backspace_snapshot = IsaacBackspaceSnapshot(
             source=str(source),

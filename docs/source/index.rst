@@ -1,3 +1,10 @@
+.. note::
+
+   This tree preserves upstream GR00T-WholeBodyControl reference documentation.
+   For this repository's Isaac kitchen, PICO workflow and HDF5 collection, see
+   the repository root ``README.md`` and ``docs/README.md``. The upstream news
+   and deployment instructions below are not the local kitchen workflow.
+
 GR00T-WholeBodyControl Documentation
 ====================================
 

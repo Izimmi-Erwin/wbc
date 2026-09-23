@@ -1,0 +1,2348 @@
+#usda 1.0
+(
+    customLayerData = {
+        string bananaPose = "World (0.55,-2.00,0.87), radius 0.03 m disk on the far right of the sink countertop; FluxBisim banana orientation and source scale 0.8 retained."
+        string assetLicense = "CC-BY-NC-4.0"
+        string assetRepository = "https://huggingface.co/datasets/limxdynamics/FluxBisimAssets"
+        string assetRevision = "1a5b6336d7752c3b605b196ae9a4e159bef3c028"
+        string description = "FluxBisim kitchen with fixed island plate spawn and randomized banana on sink-right countertop; WBC support ground retained."
+        string physicsOverrides = "Island: 16 static colliders. L-shaped Kitchen_Cabinet002: all 53 static colliders enabled (25 body, 16 door, 12 drawer). Other kitchen collisions/rigid bodies/joints disabled. Plate: dynamic, 0.2 kg. Banana: dynamic, 0.15 kg. Both retain source convexDecomposition collision."
+        string placement = "Inverse of upstream base_kitchen XY/yaw: translate (0.53,0.2,0), rotate Z -90 degrees."
+        string platePose = "Fixed world (0.60,-0.05,0.75) on island; original FluxBisim quaternion and approximately 0.21 m diameter retained."
+        string sourceFixes = "Deactivate absent duplicate Kitchen_Wall001_01; correct shelf texture filename."
+    }
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Xform "FluxBisimEnvironment" (
+        prepend references = @../../../../FluxBisim/assets/environments/KitchenRoom/kitchen_room.usd@</root>
+    )
+    {
+        float xformOp:rotateZ = -90
+        double3 xformOp:translate = (0.53, 0.2, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+
+        over "Kitchen_Wall001_01" (
+            active = false
+            payload = None
+        )
+        {
+        }
+
+        over "Kitchen_Floor"
+        {
+            bool physics:collisionEnabled = 0
+        }
+
+        over "Kitchen_Light"
+        {
+            bool physics:collisionEnabled = 0
+        }
+
+        over "Kitchen_Ground"
+        {
+            bool physics:collisionEnabled = 0
+        }
+
+        over "Kitchen_InsularShelf_01" (
+            delete apiSchemas = ["PhysicsArticulationRootAPI"]
+        )
+        {
+            over "Kitchen_InsularShelf"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_InsularShelf_C001"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C002"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C003"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C004"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C005"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C006"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C007"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C008"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C009"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_C010"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+
+                over "FixedJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Kitchen_InsularShelf_Door001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_InsularShelf_Door001"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_InsularShelf_Door001_C001"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_Door001_C002"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_InsularShelf_Door002"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_InsularShelf_Door002"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_InsularShelf_Door002_C002"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_Door002_C001"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_InsularShelf_Door003"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_InsularShelf_Door003_C002"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_InsularShelf_Door003_C001"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+        }
+
+        over "Kitchen_Cabinet001_01"
+        {
+            over "Kitchen_Cabinet001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet001_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C003_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C004_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C005_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C006_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C007_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C008_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C009_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C010_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C011_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C012_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C013_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C014_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C015_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C016_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_C017_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet001_Door001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet001_Door001"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet001_Door001_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_Door001_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet001_Door002"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet001_Door002"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet001_Door002_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_Door002_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet001_Door003"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet001_Door003"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet001_Door003_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_Door003_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet001_Door004"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet001_Door004"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet001_Door004_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_Door004_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet001_Door005"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet001_Door005"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet001_Door005_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Cabinet001_Door005_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+        }
+
+        over "WallStackOven004_01"
+        {
+            over "WallStackOven004_Door001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "WallStackOven004_Shelf001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "WallStackOven004_Shelf002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "WallStackOven004_Door001_Clear"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "FixedJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "WallStackOven004_Body001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_TopCabinet_01"
+        {
+            over "Kitchen_TopCabinet_Body_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Body_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C003"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C004"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C005"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C006"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C007"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C008"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C009"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Body_C010"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door001"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door001_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door001_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_02"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door002"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door002_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door002_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_03"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door003"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door003_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door003_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_04"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door004"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door004_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door004_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_05"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door005"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door005_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door005_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_06"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door006"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door006_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door006_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_TopCabinet_Door001_07"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_TopCabinet_Door007"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_TopCabinet_Door007_C002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_TopCabinet_Door007_C001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+        }
+
+        over "Stovetop012_01"
+        {
+            over "Stovetop012_knob_center"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Stovetop012_knob_rear_right"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Stovetop012_knob_rear_left"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Stovetop012_knob_front_right"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Stovetop012_knob_front_left"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Stovetop012_Body001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Bottle"
+        {
+            over "Kitchen_Bottle"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Bottle_Clear"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "FixedJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+        }
+
+        over "Kitchen_Bottle_01"
+        {
+            over "Kitchen_Bottle"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Bottle_Clear"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "FixedJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+        }
+
+        over "SM_P_Choppingboard_01"
+        {
+            over "Xform"
+            {
+                over "SM_P_Choppingboard_01"
+                {
+                    over "SM_P_Choppingboard_01"
+                    {
+                        bool physics:collisionEnabled = 0
+                        bool physics:rigidBodyEnabled = 0
+                    }
+                }
+            }
+        }
+
+        over "SM_P_Flavour_02"
+        {
+            over "SM_P_Flavour_03"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "SM_P_Flavour_03"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+
+            over "SM_P_Jar_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "SM_P_Jar_01"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+
+            over "SM_P_Flavour_04"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "SM_P_Flavour_04"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+
+            over "SM_P_Flavour_02"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "SM_P_Flavour_02"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+
+            over "SM_P_Tray_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "SM_P_Tray_01"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+        }
+
+        over "Kitchen_bottle002"
+        {
+            over "Kitchen_bottle002_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_bottle002"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "Collider"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+        }
+
+        over "Kitchen_bottle003"
+        {
+            over "Kitchen_bottle003_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_bottle003"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "Collider"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+        }
+
+        over "Kitchen_bottle004"
+        {
+            over "Kitchen_bottle004_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_bottle004"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "Collider"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+        }
+
+        over "Plane"
+        {
+            bool physics:collisionEnabled = 0
+        }
+
+        over "Kitchen_Bottle005"
+        {
+            over "Kitchen_Bottle005"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Bottle006"
+        {
+            over "Kitchen_Bottle006"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Bottle007"
+        {
+            over "Kitchen_Bottle007"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Disk001"
+        {
+            over "Kitchen_Disk001_01"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Disk001_01"
+        {
+            over "Kitchen_Disk001_01"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Disk001_02"
+        {
+            over "Kitchen_Disk001_01"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Paper"
+        {
+            over "Kitchen_Paper"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_KnifeHolders001"
+        {
+            over "Kitchen_KnifeHolders001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "c001"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c002"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c003"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c004"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c005"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c006"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c007"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c008"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c009"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c010"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c011"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c012"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c013"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c014"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c015"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c016"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c017"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c018"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c019"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c020"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c021"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c022"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c023"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "c024"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Knife001_01"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_Knife001_C2"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Knife001_C1"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Knife001_02"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_Knife002_C2"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Knife002_C1"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Knife001_03"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_Knife003_C2"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Knife003_C1"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+
+            over "Kitchen_Knife001_04"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_Knife004_C2"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Kitchen_Knife004_C1"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+        }
+
+        over "Kitchen_Box"
+        {
+            over "Kitchen_Box001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Box002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Box003"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Box004"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Box07"
+        {
+            over "Kitchen_Box007"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Box02"
+        {
+            over "Kitchen_Box008"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Box010"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Box009"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Basket"
+        {
+            over "Kitchen_Basket004"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Basket001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Basket002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Basket003"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Basket006"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Basket005"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Hookrack001"
+        {
+            over "Kitchen_Hookrack001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Hookrack002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Hookrack003"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Hookrack005"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Hookrack006"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Hookrack004"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Hookrack007"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Kitchen_Shelf001"
+        {
+            over "Kitchen_Shelf004"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Shelf005"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Shelf001"
+            {
+                bool physics:collisionEnabled = 0
+            }
+
+            over "Kitchen_Shelf003"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Kitchen_Shelf002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Looks"
+            {
+                over "VRayMtl_19913701_310"
+                {
+                    over "Map__33"
+                    {
+                        over "Map__33"
+                        {
+                            asset inputs:file = @../../../../FluxBisim/assets/environments/KitchenRoom/Kitchen_Other/textures/19913701-files-024.JPG@
+                        }
+                    }
+                }
+            }
+        }
+
+        over "Kitchen_Cabinet002"
+        {
+            over "Kitchen_Cabinet002"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C003_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C004_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C005_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C006_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C007_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C008_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C009_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C010_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C011_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C012_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C013_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C014_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C015_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C016_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C017_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C018_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C019_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C020_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C021_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C022_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C023_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C024_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_C025_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door001"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door001_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door001_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door002"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door002"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door002_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door002_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door003"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door003"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door003_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door003_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door004"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door004"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door004_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door004_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door005"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door005"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door005_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door005_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door006"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door006"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door006_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door006_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door007"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door007"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door007_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door007_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Door008"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Door008"
+                {
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Door008_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Door008_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Drawer001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Drawer001"
+                {
+                    over "PrismaticJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Drawer001_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer001_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer001_C003_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer001_C004_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer001_C005_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer001_C006_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+
+            over "Kitchen_Cabinet002_Drawer002"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Kitchen_Cabinet002_Drawer002"
+                {
+                    over "PrismaticJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collisions"
+                {
+                    over "Kitchen_Cabinet002_Drawer002_C001_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer002_C002_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer002_C003_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer002_C004_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer002_C005_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+
+                    over "Kitchen_Cabinet002_Drawer002_C006_Shape"
+                    {
+                        bool physics:collisionEnabled = 1
+                    }
+                }
+            }
+        }
+
+        over "RangeHood015"
+        {
+            over "RangeHood015_Button002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "RangeHood015_Button001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "RangeHood015_Button003"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "RangeHood015_Button004"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "RangeHood015_Body001_01"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+        }
+
+        over "Toaster003"
+        {
+            over "Toaster003_Body001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Collider"
+                {
+                    over "Toaster003_Body001_Collider9"
+                    {
+                        over "wBox_011"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider8"
+                    {
+                        over "wBox_013"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider7"
+                    {
+                        over "wBox_012"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider6"
+                    {
+                        over "wBox_008"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider5"
+                    {
+                        over "wBox_007"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider4"
+                    {
+                        over "wBox_006"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider3"
+                    {
+                        over "wBox_005"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider2"
+                    {
+                        over "wBox_001"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+
+                    over "Toaster003_Body001_Collider1"
+                    {
+                        over "wBox"
+                        {
+                            bool physics:collisionEnabled = 0
+                        }
+                    }
+                }
+            }
+
+            over "Toaster003_Knob001"
+            {
+                over "Toaster003_Knob001"
+                {
+                    bool physics:collisionEnabled = 0
+                    bool physics:rigidBodyEnabled = 0
+
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+            }
+
+            over "Toaster003_Lever001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Toaster003_Lever001"
+                {
+                    bool physics:collisionEnabled = 0
+
+                    over "PrismaticJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+
+                over "Collider"
+                {
+                    over "Cube"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+
+                    over "Cube_01"
+                    {
+                        bool physics:collisionEnabled = 0
+                    }
+                }
+            }
+        }
+
+        over "WallCollider"
+        {
+            over "Cube"
+            {
+                bool physics:collisionEnabled = 0
+            }
+
+            over "Cube_01"
+            {
+                bool physics:collisionEnabled = 0
+            }
+
+            over "Plane_03"
+            {
+                bool physics:collisionEnabled = 0
+            }
+
+            over "Plane_01"
+            {
+                bool physics:collisionEnabled = 0
+            }
+
+            over "Plane_02"
+            {
+                bool physics:collisionEnabled = 0
+            }
+        }
+
+        over "Microwave017"
+        {
+            over "Microwave017_Body"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Microwave017_Container"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Door"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Knob"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button2"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button3"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button4"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button1"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button6"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button5"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button7"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Microwave017_Button8"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+        }
+
+        over "Dishwasher054_01"
+        {
+            over "Dishwasher054_Body001"
+            {
+                over "Dishwasher054_Body001"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+            }
+
+            over "Dishwasher054_Container001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Dishwasher054_Container001"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Dishwasher054_Container002"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Dishwasher054_Container002"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Dishwasher054_Button001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Dishwasher054_Button001"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Dishwasher054_Door001"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Dishwasher054_Door001"
+                {
+                    bool physics:collisionEnabled = 0
+
+                    over "RevoluteJoint"
+                    {
+                        bool physics:jointEnabled = 0
+                    }
+                }
+            }
+        }
+
+        over "Sink054"
+        {
+            over "Sink054_Body001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+            }
+
+            over "Sink054_Funnel001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Sink054_Shelf001"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Sink054_Shelf002"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "PrismaticJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Sink054_handle"
+            {
+                bool physics:collisionEnabled = 0
+                bool physics:rigidBodyEnabled = 0
+
+                over "D6Joint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+
+            over "Sink054_spout"
+            {
+                bool physics:rigidBodyEnabled = 0
+
+                over "Sink054_spout"
+                {
+                    bool physics:collisionEnabled = 0
+                }
+
+                over "RevoluteJoint"
+                {
+                    bool physics:jointEnabled = 0
+                }
+            }
+        }
+    }
+
+    over "defaultGroundPlane"
+    {
+        token visibility = "invisible"
+    }
+
+    def Xform "plate" (
+        prepend apiSchemas = ["PhysicsMassAPI"]
+        prepend references = @../../../../FluxBisim/assets/pick_place_fruit/plate/base.usd@</World>
+    )
+    {
+        bool physics:kinematicEnabled = 0
+        float physics:mass = 0.2
+        bool physics:rigidBodyEnabled = 1
+        custom float wbc:randomizationRadius = 0
+        custom bool wbc:resetOnBackspace = 1
+        quatf xformOp:orient = (0.7315778, 0.681758, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0.6, -0.05, 0.75)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def Xform "banana" (
+        prepend apiSchemas = ["PhysicsMassAPI"]
+        prepend references = @../../../../FluxBisim/assets/pick_place_fruit/banana/banana.usd@</Root>
+    )
+    {
+        bool physics:kinematicEnabled = 0
+        float physics:mass = 0.15
+        bool physics:rigidBodyEnabled = 1
+        custom float wbc:randomizationRadius = 0.03
+        custom bool wbc:resetOnBackspace = 1
+        quatf xformOp:orient = (0.7315778, 0.681758, 0, 0)
+        float3 xformOp:scale = (0.8, 0.8, 0.8)
+        double3 xformOp:translate = (0.55, -2, 0.87)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+}

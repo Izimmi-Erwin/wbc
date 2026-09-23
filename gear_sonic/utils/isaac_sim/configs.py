@@ -376,6 +376,13 @@ class SimLoopConfig(BaseConfig):
     isaac_camera_fps: float = 60.0
     """Target frame rate for the Isaac ego-camera stream published on camera_port."""
 
+    # D435i RGB estimate for a 1440x1080 center crop resized to 640x480.
+    # Not measured hardware calibration. FluxBisim uses the mean of fx/fy.
+    isaac_ego_camera_fx: float = 620.80
+    isaac_ego_camera_fy: float = 625.22
+    isaac_ego_camera_cx: float = 320.0
+    isaac_ego_camera_cy: float = 240.0
+
     isaac_camera_local_x: float = 0.06
     """Isaac ego-camera local forward offset from the physical head_link, in metres."""
 
@@ -394,6 +401,9 @@ class SimLoopConfig(BaseConfig):
     isaac_robot_model: Optional[str] = None
     """Isaac robot asset id; use sonic_g1_43dof for Pico-controlled simulated hands."""
 
+    isaac_scene_layer_path: Optional[str] = None
+    """Optional USD environment layer; defaults to the existing SonicStar scene."""
+
     isaac_xr_mode: Optional[Literal["vr", "openxr"]] = None
     """Launch Isaac with an XR experience for CloudXR/Pico viewing: vr or openxr."""
 
@@ -405,6 +415,24 @@ class SimLoopConfig(BaseConfig):
 
     isaac_initial_root_height: float = 0.793
     """Isaac startup pelvis/root z height in meters; matches MuJoCo G1 pelvis pos z."""
+
+    isaac_episode_directory: Optional[str] = None
+    """Enable kitchen success detection and per-episode HDF5 with independent ego RGB."""
+
+    isaac_episode_control_port: int = 5564
+    """Local PICO manager episode handshake port."""
+
+    isaac_episode_hz: float = 30.0
+    """Maximum sample frequency for aligned state/action/object/ego rows."""
+
+    isaac_initial_root_x: float = 0.0
+    """Initial root world X and ElasticBand anchor X, in meters."""
+
+    isaac_initial_root_y: float = 0.0
+    """Initial root world Y and ElasticBand anchor Y, in meters."""
+
+    isaac_initial_root_yaw: float = 0.0
+    """Initial root and ElasticBand target yaw about world Z, in degrees."""
 
     isaac_elastic_band_anchor_z: float = 1.5
     """Isaac ElasticBand world anchor z height in meters; matches MuJoCo ElasticBand point z."""

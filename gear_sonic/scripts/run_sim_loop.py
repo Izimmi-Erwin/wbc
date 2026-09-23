@@ -199,18 +199,40 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
         physics_dt=physics_dt,
         rendering_dt=1.0 / 60.0,
         startup_steps=20,
-        scene_layer_path=DEFAULT_SONICSTAR_TASK_SCENE_LAYER_PATH,
+        scene_layer_path=config.isaac_scene_layer_path or DEFAULT_SONICSTAR_TASK_SCENE_LAYER_PATH,
         collision_layer_path=robot_asset.collision_layer_path,
         experience_path=experience_path,
         forward_k_to_deploy=bool(config.isaac_forward_k_to_deploy),
     )
     backend.elastic_band.point = np.asarray(
-        [0.0, 0.0, float(config.isaac_elastic_band_anchor_z)],
+        [config.isaac_initial_root_x, config.isaac_initial_root_y, config.isaac_elastic_band_anchor_z],
         dtype=np.float32,
     )
+    initial_yaw = np.deg2rad(float(config.isaac_initial_root_yaw))
+    initial_orientation = np.asarray(
+        [np.cos(initial_yaw / 2.0), 0.0, 0.0, np.sin(initial_yaw / 2.0)], dtype=np.float32
+    )
+    backend.elastic_band.target_yaw = initial_yaw
     backend.elastic_band.enabled = bool(config.isaac_elastic_band_enabled)
     camera_image_dt = 1.0 / float(config.isaac_camera_fps)
+    ego_camera_intrinsics = (
+        config.isaac_ego_camera_fx,
+        config.isaac_ego_camera_fy,
+        config.isaac_ego_camera_cx,
+        config.isaac_ego_camera_cy,
+    )
     bridge = None
+
+    if config.isaac_episode_directory:
+        from gear_sonic.simulation_server.kitchen_episodes import KitchenEpisodeCollector
+
+        if not config.isaac_forward_k_to_deploy or config.isaac_camera_only:
+            raise ValueError("episode collection requires the deploy relay and full control loop")
+        backend.episode_collector = KitchenEpisodeCollector(
+            backend, config.isaac_episode_directory,
+            control_port=config.isaac_episode_control_port, hz=config.isaac_episode_hz,
+            intrinsics=ego_camera_intrinsics,
+        )
 
     try:
         backend.start()
@@ -227,6 +249,7 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
                     camera_port=config.camera_port,
                     camera_source=config.isaac_camera_source,
                     image_dt=camera_image_dt,
+                    ego_camera_intrinsics=ego_camera_intrinsics,
                     local_translation=(
                         config.isaac_camera_local_x,
                         config.isaac_camera_local_y,
@@ -268,10 +291,10 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
         init_report = backend.initialize_articulation_state_for_control(
             joint_positions=standing_pose_isaac,
             root_position=np.asarray(
-                [0.0, 0.0, float(config.isaac_initial_root_height)],
+                [config.isaac_initial_root_x, config.isaac_initial_root_y, config.isaac_initial_root_height],
                 dtype=np.float32,
             ),
-            root_orientation=np.asarray([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
+            root_orientation=initial_orientation,
             configure_drives=lambda: bridge.configure_joint_drives(force=True),
             target_writer=bridge._apply_isaac_position_targets,
             reset_world=True,
@@ -284,6 +307,8 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
         (log_dir / "canonical_control_init.log").write_text(
             f"{init_report}\n"
             f"elastic_band={backend.elastic_band.as_dict()}\n"
+            f"isaac_initial_root_xy={[config.isaac_initial_root_x, config.isaac_initial_root_y]}\n"
+            f"isaac_initial_root_yaw={float(config.isaac_initial_root_yaw)}\n"
             f"isaac_initial_root_height={float(config.isaac_initial_root_height)}\n",
             encoding="utf-8",
         )
@@ -293,6 +318,7 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
                 camera_port=config.camera_port,
                 camera_source=config.isaac_camera_source,
                 image_dt=camera_image_dt,
+                ego_camera_intrinsics=ego_camera_intrinsics,
                 local_translation=(
                     config.isaac_camera_local_x,
                     config.isaac_camera_local_y,
@@ -320,6 +346,8 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
             f"log_dir={log_dir}",
             flush=True,
         )
+        if backend.episode_collector is not None:
+            backend.episode_collector.start()
         backend.spin(
             frequency_hz=int(config.sim_frequency),
             dds_bridge=bridge,

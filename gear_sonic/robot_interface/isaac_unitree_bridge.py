@@ -118,6 +118,7 @@ class IsaacUnitreeBridge(RobotInterface):
         self._new_low_cmd = False
         self._low_cmd_received = False
         self._low_cmd_lock = threading.Lock()
+        self._episode_command_cutoff = 0.0
         self._low_cmd_sequence = 0
         self._last_latency_sequence = -1
         self._started = False
@@ -166,6 +167,8 @@ class IsaacUnitreeBridge(RobotInterface):
         self._contact_views: dict[str, Any] = {}
         self._contact_error = ""
         self.last_command_tau_by_isaac: np.ndarray | None = None
+        self.last_position_targets_by_isaac: np.ndarray | None = None
+        self.last_applied_command: IsaacLowCommand | None = None
         self.last_applied_tau_by_isaac: np.ndarray | None = None
         self.last_published_lowstate: dict[str, Any] | None = None
         self.last_imu_angular_velocity: dict[str, Any] | None = None
@@ -293,6 +296,29 @@ class IsaacUnitreeBridge(RobotInterface):
 
         with self._low_cmd_lock:
             return self.latest_low_command
+
+    def discard_episode_commands(self) -> float:
+        """Atomically discard body and hand inputs without restarting DDS.
+
+        Call at reset and again at manual resume. Callbacks that began before
+        this boundary are rejected even if they were waiting for these locks.
+        """
+        with self._low_cmd_lock, self._left_hand_cmd_lock, self._right_hand_cmd_lock:
+            self._discard_episode_commands_locked()
+            return self._episode_command_cutoff
+
+    def _discard_episode_commands_locked(self) -> None:
+        self._episode_command_cutoff = time.time()
+        self.low_cmd = self.latest_low_command = None
+        self._new_low_cmd = self._low_cmd_received = False
+        self.left_hand_cmd = self.right_hand_cmd = None
+        self.left_hand_cmd_received = self.right_hand_cmd_received = False
+        self.new_left_hand_cmd = self.new_right_hand_cmd = False
+        self.last_applied_command = None
+        self.last_command_tau_by_isaac = self.last_applied_tau_by_isaac = None
+
+    def is_command_current(self, command) -> bool:
+        return command.received_time >= self._episode_command_cutoff
 
     def receive_low_cmd(self) -> IsaacLowCommand | None:
         """Return and log the newest 29-body low command, if one arrived."""
@@ -604,6 +630,8 @@ class IsaacUnitreeBridge(RobotInterface):
 
         if command is None:
             return
+        if not self.is_command_current(command):
+            return
         if self.articulation is None:
             raise RuntimeError("Isaac articulation is not attached to IsaacUnitreeBridge")
         if self.joint_mapping is None:
@@ -640,6 +668,7 @@ class IsaacUnitreeBridge(RobotInterface):
             self._apply_isaac_position_targets(target_by_isaac)
             self.last_command_tau_by_isaac = None
             self.last_applied_tau_by_isaac = None
+        self.last_applied_command = command
         self.stats.apply_count += 1
         self.stats.last_applied_joint_dim = int(applied_joint_dim)
         self.stats.last_apply_time = time.time()
@@ -670,6 +699,8 @@ class IsaacUnitreeBridge(RobotInterface):
 
     def _apply_isaac_position_targets(self, target_by_isaac: np.ndarray) -> None:
         """Apply full-DOF position targets using the Isaac articulation API."""
+
+        self.last_position_targets_by_isaac = np.asarray(target_by_isaac, dtype=np.float32).copy()
 
         articulation_view = getattr(self.articulation, "_articulation_view", None)
         view_set_targets = getattr(articulation_view, "set_joint_position_targets", None)
@@ -1470,6 +1501,7 @@ class IsaacUnitreeBridge(RobotInterface):
             return self._low_cmd_received
 
     def _low_cmd_handler(self, msg: Any) -> None:
+        received_at = time.time()
         received_action_dim = _motor_cmd_dim(msg)
         if received_action_dim is not None and received_action_dim < self.num_body_motor:
             self.stats.last_error = (
@@ -1487,6 +1519,8 @@ class IsaacUnitreeBridge(RobotInterface):
         hand_dim = max(0, received_action_dim_value - body_dim)
 
         with self._low_cmd_lock:
+            if received_at < self._episode_command_cutoff:
+                return
             self._low_cmd_sequence += 1
             command = IsaacLowCommand(
                 q=np.asarray([msg.motor_cmd[i].q for i in range(self.num_body_motor)], dtype=np.float32),
@@ -1504,6 +1538,7 @@ class IsaacUnitreeBridge(RobotInterface):
                 body_dim=body_dim,
                 hand_dim=hand_dim,
                 sequence_id=self._low_cmd_sequence,
+                received_time=received_at,
             )
             self.low_cmd = msg
             self.latest_low_command = command
@@ -1527,13 +1562,19 @@ class IsaacUnitreeBridge(RobotInterface):
             )
 
     def _left_hand_cmd_handler(self, msg: Any) -> None:
+        received_at = time.time()
         with self._left_hand_cmd_lock:
+            if received_at < self._episode_command_cutoff:
+                return
             self.left_hand_cmd = msg
             self.left_hand_cmd_received = True
             self.new_left_hand_cmd = True
 
     def _right_hand_cmd_handler(self, msg: Any) -> None:
+        received_at = time.time()
         with self._right_hand_cmd_lock:
+            if received_at < self._episode_command_cutoff:
+                return
             self.right_hand_cmd = msg
             self.right_hand_cmd_received = True
             self.new_right_hand_cmd = True

@@ -1564,6 +1564,7 @@ def run_pico_manager(
     record_format: str = "npz",
     zmq_feedback_host: str = "localhost",
     zmq_feedback_port: int = 5557,
+    episode_control_port: int = 5564,
 ):
     """
     Manager: creates shared PUB socket and runs pose/planner streamers based on current mode.
@@ -1638,6 +1639,10 @@ def run_pico_manager(
     #   POSE_PAUSE: left_menu_button held --> POSE_PAUSE, released --> POSE
     #
     print("Manager controls: A+X=toggle mode, A+B+X+Y=start/stop policy")
+    from gear_sonic.utils.teleop.episode_control import EpisodeControlServer
+
+    episode_control = EpisodeControlServer(episode_control_port)
+    print(f"[Manager] episode control: 127.0.0.1:{episode_control_port}")
     current_mode = StreamMode.OFF
     # Track which mode VR_3PT was entered from, so left_axis_click returns to it.
     # Will be either PLANNER or PLANNER_FROZEN_UPPER_BODY.
@@ -1650,6 +1655,7 @@ def run_pico_manager(
         prev_start_combo = False
         prev_left_axis_click = False
         while True:
+            episode_control.poll()
             # Poll Pico controller for buttons/axes
             a_pressed, b_pressed, x_pressed, y_pressed = get_abxy_buttons()
 
@@ -1726,6 +1732,12 @@ def run_pico_manager(
                 elif by_pressed and not prev_by_pressed:
                     new_mode = StreamMode.POSE
 
+            new_mode = StreamMode[episode_control.constrain(
+                current_mode.name, new_mode.name,
+                ax_rising=ax_pressed and not prev_ax_pressed and not start_combo,
+                emergency=start_combo and not prev_start_combo and current_mode != StreamMode.OFF,
+            )]
+
             # Handle mode transitions before running loop
             if new_mode != current_mode:
                 if current_mode == StreamMode.POSE:
@@ -1756,7 +1768,13 @@ def run_pico_manager(
                     planner_streamer.recalibrate_for_vr3pt()
 
             # Run one iteration of the new mode
-            if new_mode == StreamMode.POSE:
+            if episode_control.idle_only and new_mode == StreamMode.PLANNER:
+                # No live stick, hand or pose targets during an episode boundary.
+                # Repeated commands also survive PUB/SUB's initial slow joiner.
+                socket.send(build_planner_message(0, [0, 0, 0], [1, 0, 0], speed=0.0))
+                socket.send(build_command_message(start=True, stop=False, planner=True))
+                time.sleep(0.02)
+            elif new_mode == StreamMode.POSE:
                 pose_streamer.run_once()
             elif (
                 new_mode == StreamMode.PLANNER
@@ -1799,6 +1817,9 @@ def run_pico_manager(
                     topic="manager_state",
                 )
             )
+            # Acknowledge only after this thread has stopped pose output and
+            # published the planner frame/mode command above.
+            episode_control.published(current_mode.name)
 
             prev_ax_pressed = ax_pressed
             prev_by_pressed = by_pressed
@@ -1809,6 +1830,7 @@ def run_pico_manager(
         print("\nStopping manager...")
     finally:
         # Cleanup resources
+        episode_control.close()
         reader.stop()
         socket.close()
         context.term()
@@ -1846,6 +1868,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Run manager with planner and pose threads (interactive)",
     )
+    parser.add_argument("--episode_control_port", type=int, default=5564)
     parser.add_argument(
         "--zmq_feedback_host",
         type=str,
@@ -1872,6 +1895,7 @@ if __name__ == "__main__":
             record_format=args.record_format,
             zmq_feedback_host=args.zmq_feedback_host,
             zmq_feedback_port=args.zmq_feedback_port,
+            episode_control_port=args.episode_control_port,
         )
     else:
         # Run legacy single-thread pose streaming

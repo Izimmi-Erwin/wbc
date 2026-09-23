@@ -1,0 +1,9 @@
+# Install in a separate Python 3.10 environment; see docs/wbc_lerobot.md.
+# CPU wheels suffice for offline conversion and official reader verification.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.7.1+cpu
+torchvision==0.22.1+cpu
+numpy==1.26.4
+h5py==3.14.0
+av==16.0.1
+lerobot @ https://github.com/huggingface/lerobot/archive/55198de096f46a8e0447a8795129dd9ee84c088c.tar.gz

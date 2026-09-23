@@ -40,6 +40,7 @@ teleop = [
 # Isaac bridge helpers (run_sim_loop.py); Isaac Sim is installed separately.
 # Usage: pip install -e "gear_sonic[sim]"
 sim = [
+    "h5py",  # Per-episode kitchen trajectories and ego RGB.
     "mujoco",  # Still used by the retained gear_sonic_deploy/visualize_motion.py.
     "tyro",
     "pin",
