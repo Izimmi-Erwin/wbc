@@ -1,4 +1,4 @@
-# Install in a separate Python 3.10 environment; see docs/wbc_lerobot.md.
+# Install in a separate Python 3.10 environment; see README.md (HDF5 to LeRobot).
 # CPU wheels suffice for offline conversion and official reader verification.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.7.1+cpu

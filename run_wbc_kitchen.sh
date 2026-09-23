@@ -6,18 +6,18 @@ WBC_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ISAAC_PYTHON="${ISAAC_PYTHON:-$HOME/Erwin/isaac-sim-4.5.0/python.sh}"
 KITCHEN_USD="$WBC_ROOT/FluxBisim/assets/environments/KitchenRoom/kitchen_room.usd"
 if [[ ! -f "$KITCHEN_USD" ]]; then
-    echo "Missing kitchen assets: $KITCHEN_USD (see docs/wbc_kitchen.md)" >&2
+    echo "Missing kitchen assets: $KITCHEN_USD (see README.md: 下载厨房资产)" >&2
     exit 1
 fi
 PLATE_USD="$WBC_ROOT/FluxBisim/assets/pick_place_fruit/plate/base.usd"
 if [[ ! -f "$PLATE_USD" ]]; then
-    echo "Missing plate asset: $PLATE_USD (see docs/wbc_kitchen.md)" >&2
+    echo "Missing plate asset: $PLATE_USD (see README.md: 下载厨房资产)" >&2
     exit 1
 fi
 
 BANANA_USD="$WBC_ROOT/FluxBisim/assets/pick_place_fruit/banana/banana.usd"
 if [[ ! -f "$BANANA_USD" ]]; then
-    echo "Missing banana asset: $BANANA_USD (see docs/wbc_kitchen.md)" >&2
+    echo "Missing banana asset: $BANANA_USD (see README.md: 下载厨房资产)" >&2
     exit 1
 fi
 
