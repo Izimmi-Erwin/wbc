@@ -662,18 +662,16 @@ cd "$WBC_ROOT"
 
 ## 验证与来源
 
-在仓库根目录运行采集与转换测试：
+在仓库根目录运行采集测试：
 
 ```bash
 cd /path/to/wbc
 export ISAAC_PYTHON="/path/to/isaac-sim-4.5.0/python.sh"
 PYTHONPATH="$PWD" "$ISAAC_PYTHON" -m unittest discover \
   -s gear_sonic/tests -p test_kitchen_episodes.py -v
-work_dirs/wbc_lerobot_env/bin/python -m unittest discover \
-  -s test/test_tools -p test_wbc_conversion.py -v
 ```
 
-测试覆盖采集状态机、文件写入与格式转换；实际 PICO 闭环遥操需在部署环境中验证。
+测试覆盖采集状态机和 HDF5 文件写入；实际 PICO 闭环遥操需在部署环境中验证。
 
 代码基于 GEAR-SONIC / GR00T-WholeBodyControl、SonicStar 与 FluxVLA 的相关实现。FluxBisim 代码采用 Apache-2.0，厨房资产标注 CC-BY-NC-4.0。算法、训练及其他上游用法见 [GR00T-WholeBodyControl 文档](https://nvlabs.github.io/GR00T-WholeBodyControl/)。厨房操作、采集和转换说明统一维护在本文。
 
