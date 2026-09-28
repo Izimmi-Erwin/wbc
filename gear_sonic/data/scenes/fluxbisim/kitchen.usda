@@ -1,12 +1,12 @@
 #usda 1.0
 (
     customLayerData = {
-        string bananaPose = "World (0.55,-2.00,0.87), radius 0.03 m disk on the far right of the sink countertop; FluxBisim banana orientation and source scale 0.8 retained."
+        string applePose = "World (0.55,-2.00,0.87), radius 0.03 m disk on the far right of the sink countertop; FluxBisim apple orientation and source scale 1 retained."
         string assetLicense = "CC-BY-NC-4.0"
         string assetRepository = "https://huggingface.co/datasets/limxdynamics/FluxBisimAssets"
         string assetRevision = "1a5b6336d7752c3b605b196ae9a4e159bef3c028"
-        string description = "FluxBisim kitchen with fixed island plate spawn and randomized banana on sink-right countertop; WBC support ground retained."
-        string physicsOverrides = "Island: 16 static colliders. L-shaped Kitchen_Cabinet002: all 53 static colliders enabled (25 body, 16 door, 12 drawer). Other kitchen collisions/rigid bodies/joints disabled. Plate: dynamic, 0.2 kg. Banana: dynamic, 0.15 kg. Both retain source convexDecomposition collision."
+        string description = "FluxBisim kitchen with fixed island plate spawn and randomized apple on sink-right countertop; WBC support ground retained."
+        string physicsOverrides = "Island: 16 static colliders. L-shaped Kitchen_Cabinet002: all 53 static colliders enabled (25 body, 16 door, 12 drawer). Other kitchen collisions/rigid bodies/joints disabled. Plate: dynamic, 0.2 kg. Apple: dynamic, 0.15 kg. Both retain source convexDecomposition collision."
         string placement = "Inverse of upstream base_kitchen XY/yaw: translate (0.53,0.2,0), rotate Z -90 degrees."
         string platePose = "Fixed world (0.60,-0.05,0.75) on island; original FluxBisim quaternion and approximately 0.21 m diameter retained."
         string sourceFixes = "Deactivate absent duplicate Kitchen_Wall001_01; correct shelf texture filename."
@@ -2330,9 +2330,9 @@ def Xform "World"
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
     }
 
-    def Xform "banana" (
+    def Xform "apple" (
         prepend apiSchemas = ["PhysicsMassAPI"]
-        prepend references = @../../../../FluxBisim/assets/pick_place_fruit/banana/banana.usd@</Root>
+        prepend references = @../../../../FluxBisim/assets/pick_place_fruit/apple/apple.usd@</Root>
     )
     {
         bool physics:kinematicEnabled = 0
@@ -2340,8 +2340,8 @@ def Xform "World"
         bool physics:rigidBodyEnabled = 1
         custom float wbc:randomizationRadius = 0.03
         custom bool wbc:resetOnBackspace = 1
-        quatf xformOp:orient = (0.7315778, 0.681758, 0, 0)
-        float3 xformOp:scale = (0.8, 0.8, 0.8)
+        quatf xformOp:orient = (0.7071068, 0.7071068, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
         double3 xformOp:translate = (0.55, -2, 0.87)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
     }

@@ -1,8 +1,8 @@
 # Isaac WBC：PICO 遥操作与厨房数据采集
 
-使用 Isaac Sim 4.5.0、GEAR-SONIC WBC 和 PICO / XRoboToolkit 遥操作 G1（29 个身体关节 + 14 个手部关节），在 FluxBisim 厨房中采集“把香蕉放进红盘子”的轨迹。
+使用 Isaac Sim 4.5.0、GEAR-SONIC WBC 和 PICO / XRoboToolkit 遥操作 G1（29 个身体关节 + 14 个手部关节），在 FluxBisim 厨房中采集“把苹果放进红盘子”的轨迹。
 
-红盘子固定生成在中岛，香蕉在水池右侧台面的 3 cm 圆内随机生成，机器人初始化在香蕉右侧。中岛和 L 型橱柜已启用碰撞。厨房接入保留原 WBC 控制器和五终端流程。
+红盘子固定生成在中岛，苹果在水池右侧台面的 3 cm 圆内随机生成，机器人初始化在苹果右侧。中岛和 L 型橱柜已启用碰撞。厨房接入保留原 WBC 控制器和五终端流程。
 
 ## 运行前准备
 
@@ -26,7 +26,7 @@ git clone https://github.com/FluxVLA/FluxBisim.git FluxBisim
 
 将 `cd` 路径替换为自己的 WBC 根目录。若已克隆 FluxBisim，可复用该目录，保留其中已下载的资产。
 
-**代码与资产需要分别下载**：GitHub 克隆完成后，还需按 [厨房资产下载说明](#下载厨房资产) 从 Hugging Face 下载厨房、盘子和香蕉到 `FluxBisim/assets/`。目录应为：
+**代码与资产需要分别下载**：GitHub 克隆完成后，还需按 [厨房资产下载说明](#下载厨房资产) 从 Hugging Face 下载厨房、盘子和苹果到 `FluxBisim/assets/`。目录应为：
 
 ```text
 wbc/
@@ -38,21 +38,21 @@ wbc/
         ├── environments/KitchenRoom/
         └── pick_place_fruit/
             ├── plate/
-            └── banana/
+            └── apple/
 ```
 
 当前接入复用 FluxBisim 的场景资产和相关实现，无需另行启动它的双臂 benchmark 或安装 ROS Noetic。
 
 ### 下载厨房资产
 
-安装 [uv](https://docs.astral.sh/uv/getting-started/installation/) 后，在已克隆 FluxBisim 代码的 WBC 根目录下载厨房、盘子和香蕉。代码与资产分别来自 GitHub 和 Hugging Face；仅克隆代码不能启动厨房场景。
+安装 [uv](https://docs.astral.sh/uv/getting-started/installation/) 后，在已克隆 FluxBisim 代码的 WBC 根目录下载厨房、盘子和苹果。代码与资产分别来自 GitHub 和 Hugging Face；仅克隆代码不能启动厨房场景。
 
 ```bash
 cd /path/to/wbc
 uvx --from huggingface_hub hf download limxdynamics/FluxBisimAssets \
   --repo-type dataset \
   --revision 1a5b6336d7752c3b605b196ae9a4e159bef3c028 \
-  --include 'environments/KitchenRoom/**' 'pick_place_fruit/plate/**' 'pick_place_fruit/banana/**' \
+  --include 'environments/KitchenRoom/**' 'pick_place_fruit/plate/**' 'pick_place_fruit/apple/**' \
   --local-dir FluxBisim/assets
 ```
 
@@ -60,7 +60,7 @@ uvx --from huggingface_hub hf download limxdynamics/FluxBisimAssets \
 
 - `FluxBisim/assets/environments/KitchenRoom/kitchen_room.usd`
 - `FluxBisim/assets/pick_place_fruit/plate/base.usd`
-- `FluxBisim/assets/pick_place_fruit/banana/banana.usd`
+- `FluxBisim/assets/pick_place_fruit/apple/apple.usd`
 
 ### 场景与生成位置
 
@@ -69,12 +69,12 @@ uvx --from huggingface_hub hf download limxdynamics/FluxBisimAssets \
 | 对象 | 初始设置 |
 | --- | --- |
 | 红盘子 `/World/plate` | 中岛 `(0.60, -0.05, 0.75)`，随机半径为 0，质量 0.2 kg |
-| 香蕉 `/World/banana` | 水池右侧 `(0.55, -2.00, 0.87)`，XY 随机半径 0.03 m，质量 0.15 kg |
+| 苹果 `/World/apple` | 水池右侧 `(0.55, -2.00, 0.87)`，XY 随机半径 0.03 m，质量 0.15 kg |
 | 机器人 | `(-0.10, -1.90, 0.757)`，yaw 为 -9°，辅助锚点和目标朝向同步调整 |
 
 这些是重置时的生成位姿，物体随后受重力自然落下；固定生成不代表锁定盘子的物理运动。中岛的 16 个碰撞体和 L 型橱柜的 53 个碰撞体启用，柜门和抽屉保持静态。其他厨房物体仍按背景配置处理。
 
-香蕉按圆面积均匀采样：`theta = uniform(0, 2π)`，`r = radius * sqrt(uniform(0, 1))`。每次 Backspace 恢复盘子固定位置、重新采样香蕉位置并清零物体速度。圆心来自 USD 初始位姿，不随上轮物体移动而改变；修改圆心或半径后需检查台面边缘和水池。
+苹果按圆面积均匀采样：`theta = uniform(0, 2π)`，`r = radius * sqrt(uniform(0, 1))`。每次 Backspace 恢复盘子固定位置、重新采样苹果位置并清零物体速度。圆心来自 USD 初始位姿，不随上轮物体移动而改变；修改圆心或半径后需检查台面边缘和水池。
 
 ## 五终端运行指令
 
@@ -169,19 +169,19 @@ cd "$WBC_ROOT"
 1. 完成上述 `k → 9 → backspace`，等待机器人稳定。
 2. 保持中性标定姿态，按一次 **A+B+X+Y**，manager 标定并从 OFF 进入 PLANNER。
 3. **完全松开组合键**，再按一次 **A+X** 进入 POSE 跟踪。ego 图像就绪后开始记录本轮。
-4. 左右 Trigger 控制对应手的抓握。把香蕉放进红盘子，松手并放稳。
+4. 左右 Trigger 控制对应手的抓握。把苹果放进红盘子，松手并放稳。
 5. 系统确认成功后，要求 manager 切到 PLANNER 并等待确认，保存 HDF5，然后 reset。
 6. 看到 `reset complete; press A+X manually for the next episode`，再手动按一次 **A+X** 开始下一轮，无需重复初始化或标定。
 
 | 结束方式 | 文件处理 | 复位后的操作 |
 | --- | --- | --- |
-| 香蕉入盘并放稳 | 保存 `outcome=success`、`success=True` | 等待手动 A+X |
+| 苹果入盘并放稳 | 保存 `outcome=success`、`success=True` | 等待手动 A+X |
 | 本轮达到 180 秒 | 保存 `outcome=timeout`、`success=False` | 等待手动 A+X |
 | 采集中手动 Backspace | 丢弃当前临时文件，不保存本轮 HDF5 | 保持当前模式，图像就绪后自动重开记录并重新计时 |
 
 三分钟从本轮正式记录开始按实际时间累计，途中暂停跟踪不暂停计时。等待下一轮时不计时；这时按 Backspace 只复位，仍需 A+X。自动结束已进入握手时手动 Backspace，会丢弃尚未落盘的当前轮，完成握手后等待 A+X。历史文件不受影响。
 
-成功检测要求香蕉位于盘内、接触盘子、脱离手部且两物体运动足够小，连续满足约 0.6 秒，并有有效 ego 图像。悬空经过、仍被抓住或跨在盘沿外不算成功。
+成功检测要求苹果位于盘内、接触盘子、脱离手部且两物体运动足够小，连续满足约 0.6 秒，并有有效 ego 图像。悬空经过、仍被抓住或跨在盘沿外不算成功。
 
 A+X 使用组合键从未按下到按下的上升沿切换模式。自动结束通过 `127.0.0.1:5564` 接口明确请求 PLANNER；等待阶段暂停物理，只有新的手动 A+X 才能开始下一轮。详细判据、状态边界与 HDF5 字段见 [采集判据与文件字段](#采集判据与文件字段)。
 
@@ -228,14 +228,14 @@ ego 使用原 MJCF 相机姿态，内参 fx=620.80、fy=625.22、cx=320、cy=240
 
 成功检查使用 PhysX 的实际接触力，而不是只比较水平距离。下列条件需连续满足 0.6 秒：
 
-- 香蕉的水平包围盒完全位于盘子中心半径 `0.105 m` 内，根节点高于盘子且高度差小于 `0.09 m`。
-- 盘子正面朝上；香蕉与盘子的接触力大于 `0.03 N`。
-- 香蕉与机器人手掌、手指、腕部的接触力总量小于 `0.02 N`。
-- 香蕉、盘子线速度均小于 `0.05 m/s`，香蕉角速度小于 `0.5 rad/s`。
+- 苹果的水平包围盒完全位于盘子中心半径 `0.105 m` 内，根节点高于盘子且高度差小于 `0.09 m`。
+- 盘子正面朝上；苹果与盘子的接触力大于 `0.03 N`。
+- 苹果与机器人手掌、手指、腕部的接触力总量小于 `0.02 N`。
+- 苹果、盘子线速度均小于 `0.05 m/s`，苹果角速度小于 `0.5 rad/s`。
 - 采样时有有效的新第一人称图像。
 
-香蕉在盘子上方悬空、从上方经过、仍被抓住、盘子翻转或物体仍在明显运动时，不计为成功。
-包围盒条件比较保守；香蕉跨在盘沿外面时需要放得更居中。
+苹果在盘子上方悬空、从上方经过、仍被抓住、盘子翻转或物体仍在明显运动时，不计为成功。
+包围盒条件比较保守；苹果跨在盘沿外面时需要放得更居中。
 
 #### HDF5 文件
 
@@ -256,11 +256,11 @@ ego 使用原 MJCF 相机姿态，内参 fx=620.80、fy=625.22、cx=320、cy=240
 | `actions/applied_effort` | effort 控制模式下应用的力矩；位置控制时为 NaN |
 | `actions/lowcmd_q`, `lowcmd_dq`, `lowcmd_kp`, `lowcmd_kd`, `lowcmd_tau` | 29 维身体 DDS LowCmd，顺序见 `body_command_joint_names` |
 | `actions/valid`, `received_wall_time` | 指令是否在本轮开始后收到，以及接收时间；无有效指令时不要用于监督训练 |
-| `objects/banana_pose`, `plate_pose` | 世界坐标 XYZ + wxyz |
-| `objects/banana_velocity`, `plate_velocity` | 世界坐标线速度 + 角速度 |
+| `objects/apple_pose`, `plate_pose` | 世界坐标 XYZ + wxyz |
+| `objects/apple_velocity`, `plate_velocity` | 世界坐标线速度 + 角速度 |
 | `observations/images/ego_jpeg` | 每帧 JPEG 字节，解码为 640×480 RGB |
 | `observations/images/ego_valid`, `ego_render_frame`, `ego_render_time` | 图像有效性、渲染帧编号、渲染时间；重复/未就绪图像会显式标记无效 |
-| `task/plate_contact_force`, `hand_contact_force` | 香蕉与盘子、手部的接触力（N） |
+| `task/plate_contact_force`, `hand_contact_force` | 苹果与盘子、手部的接触力（N） |
 | `manager/mode` | OFF=0、POSE=1、PLANNER=2、FROZEN=3、POSE_PAUSE=4、VR_3PT=5 |
 
 文件属性包括 `schema_version`、`complete`、`success`、`outcome`、`num_frames` 和 `metadata_json`。
@@ -327,8 +327,8 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
 ```bash
 work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
   work_dirs/kitchen_episodes \
-  --output datasets/wbc_banana_success \
-  --repo-id local/wbc_banana_success \
+  --output datasets/wbc_apple_success \
+  --repo-id local/wbc_apple_success \
   --fps 30
 ```
 
@@ -337,6 +337,8 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
 输出 30 FPS 使用已有观测重采样，不会增加真实采样信息。字段、动作对齐、筛选及环境安装见 [转换字段与时间对齐](#转换字段与时间对齐)。
 
 ### 转换字段与时间对齐
+
+默认 `--fruit apple`，新 HDF5 写入 `objects/apple_pose` 和 `objects/apple_velocity`，LeRobot 使用对应的 `observation.apple_*` 字段。历史香蕉 HDF5 仍可通过 `--fruit banana` 转换；该选项同时选择香蕉字段和默认任务描述，不会把旧数据改标为苹果。每次转换只选择一种物体，输出目录需分别命名。
 
 转换器支持 schema_version=1、position 控制模式、43 关节和一台 ego 相机。默认仅接收完整的 `outcome=success`、`success=True` 文件；`--outcomes timeout` 用于超时测试数据，`--limit 1` 可只转换一条合格源文件。旧 `manual_reset`、`test_timeout` 和 partial 文件不纳入转换。
 
@@ -354,8 +356,8 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
 | `observation.images.ego`                                  | `observations/images/ego_jpeg`，RGB MP4 |
 | `observation.joint_velocity`                              | 43 维关节速度                           |
 | `observation.root_pose`, `root_velocity`                  | 根节点位姿、速度                        |
-| `observation.banana_pose`, `plate_pose`                   | 香蕉、盘子 XYZ + wxyz                   |
-| `observation.banana_velocity`, `plate_velocity`           | 物体线速度、角速度                      |
+| `observation.apple_pose`, `plate_pose`                   | 苹果、盘子 XYZ + wxyz                   |
+| `observation.apple_velocity`, `plate_velocity`           | 物体线速度、角速度                      |
 | `source.observation_row`, `source.action_row`             | 源 HDF5 行号                            |
 | `source.observation_wall_time`, `source.action_wall_time` | 源行 PC 时间                            |
 | `source.simulation_time`, `source.ego_render_time`        | 保留的原仿真和相机时间                  |
@@ -409,7 +411,7 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
 | 入口 | 用途 |
 | --- | --- |
 | [run_wbc_kitchen.sh](run_wbc_kitchen.sh) | 厨房启动参数与采集目录 |
-| [kitchen.usda](gear_sonic/data/scenes/fluxbisim/kitchen.usda) | 场景引用、碰撞、盘子 / 香蕉生成配置 |
+| [kitchen.usda](gear_sonic/data/scenes/fluxbisim/kitchen.usda) | 场景引用、碰撞、盘子 / 苹果生成配置 |
 | [isaac_server.py](gear_sonic/simulation_server/isaac_server.py) | 物理步进、随机复位和相机 |
 | [kitchen_episodes.py](gear_sonic/simulation_server/kitchen_episodes.py) | 成功判定、180 秒计时、HDF5 保存及复位 |
 | [episode_control.py](gear_sonic/utils/teleop/episode_control.py) | 仿真与 manager 的分轮请求 / 确认 |

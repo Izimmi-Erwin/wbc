@@ -188,7 +188,7 @@ class KitchenEpisodeCollector:
         from isaacsim.core.prims import RigidPrim
 
         stage = omni.usd.get_context().get_stage()
-        for path in ("/World/banana", "/World/plate"):
+        for path in ("/World/apple", "/World/plate"):
             if not stage.GetPrimAtPath(path).HasAPI(UsdPhysics.RigidBodyAPI):
                 raise ValueError(f"episode collection requires a rigid body at {path}")
         hand_paths = [str(p.GetPath()) for p in Usd.PrimRange(stage.GetPrimAtPath(self.backend.prim_path))
@@ -197,7 +197,7 @@ class KitchenEpisodeCollector:
         if not hand_paths:
             raise ValueError("cannot verify release: robot hand rigid bodies were not found")
         self.contact_view = self.backend.world.scene.add(RigidPrim(
-            prim_paths_expr="/World/banana", name="episode_banana_contacts",
+            prim_paths_expr="/World/apple", name="episode_apple_contacts",
             contact_filter_prim_paths_expr=["/World/plate", *hand_paths],
             track_contact_forces=True, max_contact_count=256,
         ))
@@ -305,6 +305,7 @@ class KitchenEpisodeCollector:
         self.token = uuid.uuid4().hex
         scene = Path(self.backend.scene_layer_path)
         self.writer = Hdf5Episode(self.directory, {
+            "task_object": "apple",
             "robot_model": self.backend.robot_model, "joint_names": self.backend.dof_names,
             "body_command_joint_names": list(self.backend.robot_asset.body_joint_names),
             "quaternion_order": "wxyz", "world_units": "metres", "frequency_hz": self.hz,
@@ -349,16 +350,16 @@ class KitchenEpisodeCollector:
         import omni.usd
         from pxr import Usd, UsdGeom
 
-        banana, plate = self.bodies["/World/banana"], self.bodies["/World/plate"]
-        bp, bq = banana.get_world_pose()
+        apple, plate = self.bodies["/World/apple"], self.bodies["/World/plate"]
+        bp, bq = apple.get_world_pose()
         pp, pq = plate.get_world_pose()
-        bv, pv = banana.get_linear_velocity(), plate.get_linear_velocity()
-        ba = banana.get_angular_velocity()
+        bv, pv = apple.get_linear_velocity(), plate.get_linear_velocity()
+        ba = apple.get_angular_velocity()
         forces = np.asarray(self.contact_view.get_contact_force_matrix(dt=self.backend.physics_dt))[0]
         plate_force = float(np.linalg.norm(forces[0]))
         hand_force = float(np.linalg.norm(forces[1:], axis=-1).sum())
         bounds = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render", "proxy"], False, True).ComputeWorldBound(
-            omni.usd.get_context().get_stage().GetPrimAtPath("/World/banana")
+            omni.usd.get_context().get_stage().GetPrimAtPath("/World/apple")
         ).ComputeAlignedRange()
         lo, hi = np.asarray(bounds.GetMin()), np.asarray(bounds.GetMax())
         farthest_xy = np.maximum(np.abs(lo[:2] - pp[:2]), np.abs(hi[:2] - pp[:2]))
@@ -379,9 +380,9 @@ class KitchenEpisodeCollector:
             "observations/joint_velocity": np.asarray(state.joint_velocity, dtype=np.float32),
             "observations/root_pose": np.asarray([*state.root_position, *state.root_quaternion], dtype=np.float32),
             "observations/root_velocity": np.asarray([*state.root_linear_velocity, *state.root_angular_velocity], dtype=np.float32),
-            "objects/banana_pose": np.asarray([*bp, *bq], dtype=np.float32),
+            "objects/apple_pose": np.asarray([*bp, *bq], dtype=np.float32),
             "objects/plate_pose": np.asarray([*pp, *pq], dtype=np.float32),
-            "objects/banana_velocity": np.asarray([*bv, *ba], dtype=np.float32),
+            "objects/apple_velocity": np.asarray([*bv, *ba], dtype=np.float32),
             "objects/plate_velocity": np.asarray([*pv, *plate.get_angular_velocity()], dtype=np.float32),
             "actions/valid": np.bool_(command_valid),
             "actions/joint_position_target": np.asarray(targets if targets is not None else np.full(self.backend.num_dof, np.nan), dtype=np.float32),

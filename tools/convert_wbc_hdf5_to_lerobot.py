@@ -13,17 +13,28 @@ import numpy as np
 
 LEROBOT_REVISION = '55198de096f46a8e0447a8795129dd9ee84c088c'
 IMAGE = 'observations/images/ego_jpeg'
-TASK = 'pick up the yellow banana and put it on the red plate'
+TASKS = {
+    'apple': 'pick up the apple and put it on the red plate',
+    'banana': 'pick up the yellow banana and put it on the red plate',
+}
 # Output name -> (HDF5 path, width). All poses use XYZ + wxyz.
 EXTRAS = {
     'observation.joint_velocity': ('observations/joint_velocity', None),
     'observation.root_pose': ('observations/root_pose', 7),
     'observation.root_velocity': ('observations/root_velocity', 6),
-    'observation.banana_pose': ('objects/banana_pose', 7),
     'observation.plate_pose': ('objects/plate_pose', 7),
-    'observation.banana_velocity': ('objects/banana_velocity', 6),
     'observation.plate_velocity': ('objects/plate_velocity', 6),
 }
+
+
+def extras_for(fruit):
+    if fruit not in TASKS:
+        raise ValueError(f'Unsupported fruit: {fruit}')
+    return {
+        **EXTRAS,
+        f'observation.{fruit}_pose': (f'objects/{fruit}_pose', 7),
+        f'observation.{fruit}_velocity': (f'objects/{fruit}_velocity', 6),
+    }
 
 
 def decode_image(value):
@@ -77,11 +88,13 @@ def resample_segments(times, valid, fps, max_gap, alignment):
     return segments
 
 
-def inspect_episode(path, fps, max_gap, alignment):
+def inspect_episode(path, fps, max_gap, alignment, fruit='apple'):
     with h5py.File(path, 'r') as data:
         if int(data.attrs.get('schema_version', -1)) != 1:
             raise ValueError('Unsupported WBC schema_version')
         metadata = json.loads(data.attrs['metadata_json'])
+        if metadata.get('task_object', fruit) != fruit:
+            raise ValueError(f'Episode task_object does not match {fruit}')
         if metadata.get('control_mode') != 'position':
             raise ValueError('43-DOF target conversion requires position mode')
         names = metadata['joint_names']
@@ -97,7 +110,7 @@ def inspect_episode(path, fps, max_gap, alignment):
             'action': data['actions/joint_position_target'][:],
         }
         widths = dict.fromkeys(arrays, len(names))
-        for key, (source, width) in EXTRAS.items():
+        for key, (source, width) in extras_for(fruit).items():
             arrays[key] = data[source][:]
             widths[key] = len(names) if width is None else width
         for key, array in arrays.items():
@@ -135,12 +148,14 @@ def inspect_episode(path, fps, max_gap, alignment):
             raise ValueError('No continuous valid segment to convert')
         return {
             'path': path,
+            'fruit': fruit,
             'metadata': metadata,
             'names': names,
             'image_shape': shape,
             'segments': segments,
             'summary': {
                 'source': str(path.resolve()),
+                'task_object': fruit,
                 'sha256': sha256(path),
                 'outcome': str(data.attrs['outcome']),
                 'success': bool(data.attrs['success']),
@@ -154,7 +169,7 @@ def inspect_episode(path, fps, max_gap, alignment):
         }
 
 
-def scan(raw_dir, outcomes, fps, max_gap, alignment, limit=None):
+def scan(raw_dir, outcomes, fps, max_gap, alignment, limit=None, fruit='apple'):
     episodes, skipped = [], []
     for path in sorted(raw_dir.rglob('episode_*.hdf5')):
         if '.partial.' in path.name:
@@ -169,7 +184,7 @@ def scan(raw_dir, outcomes, fps, max_gap, alignment, limit=None):
                     raise ValueError(f'outcome excluded: {outcome}')
                 if (outcome == 'success') != bool(data.attrs['success']):
                     raise ValueError('success flag disagrees with outcome')
-            episode = inspect_episode(path, fps, max_gap, alignment)
+            episode = inspect_episode(path, fps, max_gap, alignment, fruit)
         except (OSError, KeyError, ValueError, TypeError) as error:
             skipped.append({'source': str(path), 'reason': str(error)})
             continue
@@ -203,7 +218,7 @@ def features_for(episode):
             'names': ['height', 'width', 'channels']
         },
     }
-    for key, (_, width) in EXTRAS.items():
+    for key, (_, width) in extras_for(episode['fruit']).items():
         features[key] = {
             'dtype': 'float32',
             'shape': (len(names) if width is None else width, ),
@@ -279,7 +294,7 @@ def write_dataset(episodes, output, repo_id, fps, task, report):
                             'source.action_row':
                             np.array([action_row]),
                         }
-                        for key, (source, _) in EXTRAS.items():
+                        for key, (source, _) in extras_for(episode['fruit']).items():
                             frame[key] = np.asarray(
                                 data[source][row], dtype=np.float32)
                         provenance = {
@@ -354,9 +369,10 @@ def main():
     parser.add_argument('raw_dir', type=Path)
     parser.add_argument(
         '--output', type=Path, help='New dataset directory; never overwritten')
-    parser.add_argument('--repo-id', default='local/wbc_banana')
+    parser.add_argument('--repo-id', help='Default: local/wbc_<fruit>')
+    parser.add_argument('--fruit', choices=tuple(TASKS), default='apple')
     parser.add_argument('--fps', type=int, default=30)
-    parser.add_argument('--task', default=TASK)
+    parser.add_argument('--task', help='Default: the selected fruit placement task')
     parser.add_argument(
         '--outcomes',
         nargs='+',
@@ -373,6 +389,8 @@ def main():
         '--limit', type=int, help='Limit accepted source files')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
+    args.task = args.task or TASKS[args.fruit]
+    args.repo_id = args.repo_id or f'local/wbc_{args.fruit}'
     if not args.raw_dir.is_dir():
         parser.error('raw_dir must be an existing directory')
     if (not 1 <= args.fps <= 200 or not math.isfinite(args.max_gap)
@@ -387,7 +405,7 @@ def main():
         if args.output.resolve().is_relative_to(args.raw_dir.resolve()):
             parser.error('Output must be outside the raw HDF5 directory')
     episodes, skipped = scan(args.raw_dir, args.outcomes, args.fps,
-                             args.max_gap, args.action_alignment, args.limit)
+                             args.max_gap, args.action_alignment, args.limit, args.fruit)
     report = {
         'format':
         'LeRobot v2.1',
@@ -397,6 +415,8 @@ def main():
         args.fps,
         'task':
         args.task,
+        'fruit':
+        args.fruit,
         'outcomes':
         args.outcomes,
         'action_alignment':

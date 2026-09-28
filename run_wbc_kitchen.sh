@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run WBC with a fixed plate spawn on the island and a randomized countertop banana.
+# Run WBC with a fixed plate spawn on the island and a randomized countertop apple.
 set -euo pipefail
 
 WBC_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,9 +15,9 @@ if [[ ! -f "$PLATE_USD" ]]; then
     exit 1
 fi
 
-BANANA_USD="$WBC_ROOT/FluxBisim/assets/pick_place_fruit/banana/banana.usd"
-if [[ ! -f "$BANANA_USD" ]]; then
-    echo "Missing banana asset: $BANANA_USD (see README.md: 下载厨房资产)" >&2
+APPLE_USD="$WBC_ROOT/FluxBisim/assets/pick_place_fruit/apple/apple.usd"
+if [[ ! -f "$APPLE_USD" ]]; then
+    echo "Missing apple asset: $APPLE_USD (see README.md: 下载厨房资产)" >&2
     exit 1
 fi
 
