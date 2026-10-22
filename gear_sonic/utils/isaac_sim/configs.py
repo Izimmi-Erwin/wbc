@@ -419,6 +419,12 @@ class SimLoopConfig(BaseConfig):
     isaac_episode_directory: Optional[str] = None
     """Enable kitchen success detection and per-episode HDF5 with independent ego RGB."""
 
+    isaac_episode_wrist_cameras: bool = False
+    """Record synchronized left/right wrist RGB alongside ego."""
+
+    isaac_wrist_camera_config: Optional[str] = None
+    """Override data/cameras/wrist_cameras.json (simulation defaults, not SonicStar calibration)."""
+
     isaac_episode_control_port: int = 5564
     """Local PICO manager episode handshake port."""
 

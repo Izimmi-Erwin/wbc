@@ -232,6 +232,8 @@ def _run_isaac_loop(config: ArgsConfig, wbc_config: Dict[str, Any]) -> None:
             backend, config.isaac_episode_directory,
             control_port=config.isaac_episode_control_port, hz=config.isaac_episode_hz,
             intrinsics=ego_camera_intrinsics,
+            wrist_cameras=config.isaac_episode_wrist_cameras,
+            wrist_camera_config=config.isaac_wrist_camera_config,
         )
 
     try:

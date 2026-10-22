@@ -12,7 +12,11 @@ import h5py
 import numpy as np
 
 LEROBOT_REVISION = '55198de096f46a8e0447a8795129dd9ee84c088c'
-IMAGE = 'observations/images/ego_jpeg'
+CAMERAS = ('ego', 'left_wrist', 'right_wrist')
+
+
+def image_path(camera, field='jpeg'):
+    return f'observations/images/{camera}_{field}'
 TASKS = {
     'apple': 'pick up the apple and put it on the red plate',
     'banana': 'pick up the yellow banana and put it on the red plate',
@@ -40,7 +44,7 @@ def extras_for(fruit):
 def decode_image(value):
     image = cv2.imdecode(np.asarray(value, dtype=np.uint8), cv2.IMREAD_COLOR)
     if image is None:
-        raise ValueError('Undecodable ego JPEG')
+        raise ValueError('Undecodable camera JPEG')
     return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
@@ -88,7 +92,7 @@ def resample_segments(times, valid, fps, max_gap, alignment):
     return segments
 
 
-def inspect_episode(path, fps, max_gap, alignment, fruit='apple'):
+def inspect_episode(path, fps, max_gap, alignment, fruit='apple', cameras=None):
     with h5py.File(path, 'r') as data:
         if int(data.attrs.get('schema_version', -1)) != 1:
             raise ValueError('Unsupported WBC schema_version')
@@ -97,6 +101,14 @@ def inspect_episode(path, fps, max_gap, alignment, fruit='apple'):
             raise ValueError(f'Episode task_object does not match {fruit}')
         if metadata.get('control_mode') != 'position':
             raise ValueError('43-DOF target conversion requires position mode')
+        available = tuple(name for name in CAMERAS if image_path(name) in data)
+        selected = tuple(cameras) if cameras is not None else available
+        if not selected or len(set(selected)) != len(selected) or any(name not in CAMERAS for name in selected):
+            raise ValueError('Select unique camera names: ego, left_wrist, right_wrist')
+        if cameras is None and available not in (('ego',), CAMERAS):
+            raise ValueError(f'Incomplete camera set: {available}; select --cameras explicitly')
+        if any(name not in available for name in selected):
+            raise ValueError(f'Missing requested cameras; available: {available}')
         names = metadata['joint_names']
         if (len(names) != 43 or len(names) != len(set(names))
                 or not all(isinstance(name, str) for name in names)):
@@ -113,36 +125,45 @@ def inspect_episode(path, fps, max_gap, alignment, fruit='apple'):
         for key, (source, width) in extras_for(fruit).items():
             arrays[key] = data[source][:]
             widths[key] = len(names) if width is None else width
+        for name in selected:
+            if name != 'ego':
+                key = f'observation.{name}_camera_pose'
+                arrays[key] = data[f'observations/cameras/{name}_world_pose'][:]
+                widths[key] = 7
         for key, array in arrays.items():
             if array.shape != (size, widths[key]):
                 raise ValueError(f'Invalid shape for {key}: {array.shape}')
-        paths = [
-            IMAGE, 'actions/valid', 'observations/images/ego_valid',
-            'manager/mode', 'time/simulation', 'actions/received_wall_time',
-            'observations/images/ego_render_time'
-        ]
-        if any(data[key].shape != (size, ) for key in paths):
+        paths = ['actions/valid', 'manager/mode', 'time/simulation', 'actions/received_wall_time']
+        for name in selected:
+            paths.extend(image_path(name, field) for field in ('jpeg', 'valid', 'render_frame', 'render_time'))
+        if any(data[key].shape != (size,) for key in paths):
             raise ValueError('Image/flag/timestamp row counts differ')
-        valid = (
-            data['actions/valid'][:].astype(bool)
-            & data['observations/images/ego_valid'][:].astype(bool)
-            & (data['manager/mode'][:] == 1))
+        valid = data['actions/valid'][:].astype(bool) & (data['manager/mode'][:] == 1)
         for array in arrays.values():
             valid &= np.isfinite(array).all(axis=1)
-        for key in ('time/simulation', 'actions/received_wall_time',
-                    'observations/images/ego_render_time'):
+        for key in ('time/simulation', 'actions/received_wall_time'):
             valid &= np.isfinite(data[key][:])
-        shape = None
+        reference_frame = data[image_path(selected[0], 'render_frame')][:]
+        reference_time = data[image_path(selected[0], 'render_time')][:]
+        shapes = {}
+        for name in selected:
+            frames = data[image_path(name, 'render_frame')][:]
+            stamps = data[image_path(name, 'render_time')][:]
+            valid &= data[image_path(name, 'valid')][:].astype(bool)
+            valid &= np.isfinite(stamps) & (stamps >= 0) & (frames >= 0)
+            valid &= (frames == reference_frame) & (np.abs(stamps - reference_time) < 1e-6)
+            valid[1:] &= (frames[1:] != frames[:-1])
         for row in np.flatnonzero(valid):
-            try:
-                image = decode_image(data[IMAGE][row])
-            except (ValueError, cv2.error):
-                valid[row] = False
-                continue
-            if shape is None:
-                shape = image.shape
-            if image.shape != shape:
-                raise ValueError('Ego image size changed within episode')
+            for name in selected:
+                try:
+                    image = decode_image(data[image_path(name)][row])
+                except (ValueError, cv2.error):
+                    valid[row] = False
+                    break
+                if name not in shapes:
+                    shapes[name] = image.shape
+                if image.shape != shapes[name]:
+                    raise ValueError(f'{name} image size changed within episode')
         segments = resample_segments(times, valid, fps, max_gap, alignment)
         if not segments:
             raise ValueError('No continuous valid segment to convert')
@@ -151,11 +172,13 @@ def inspect_episode(path, fps, max_gap, alignment, fruit='apple'):
             'fruit': fruit,
             'metadata': metadata,
             'names': names,
-            'image_shape': shape,
+            'camera_shapes': shapes,
+            'cameras': selected,
             'segments': segments,
             'summary': {
                 'source': str(path.resolve()),
                 'task_object': fruit,
+                'cameras': selected,
                 'sha256': sha256(path),
                 'outcome': str(data.attrs['outcome']),
                 'success': bool(data.attrs['success']),
@@ -169,7 +192,7 @@ def inspect_episode(path, fps, max_gap, alignment, fruit='apple'):
         }
 
 
-def scan(raw_dir, outcomes, fps, max_gap, alignment, limit=None, fruit='apple'):
+def scan(raw_dir, outcomes, fps, max_gap, alignment, limit=None, fruit='apple', cameras=None):
     episodes, skipped = [], []
     for path in sorted(raw_dir.rglob('episode_*.hdf5')):
         if '.partial.' in path.name:
@@ -184,15 +207,15 @@ def scan(raw_dir, outcomes, fps, max_gap, alignment, limit=None, fruit='apple'):
                     raise ValueError(f'outcome excluded: {outcome}')
                 if (outcome == 'success') != bool(data.attrs['success']):
                     raise ValueError('success flag disagrees with outcome')
-            episode = inspect_episode(path, fps, max_gap, alignment, fruit)
+            episode = inspect_episode(path, fps, max_gap, alignment, fruit, cameras)
         except (OSError, KeyError, ValueError, TypeError) as error:
             skipped.append({'source': str(path), 'reason': str(error)})
             continue
         if episodes:
             if episode['names'] != episodes[0]['names']:
                 raise ValueError(f'Joint order differs in {path}')
-            if episode['image_shape'] != episodes[0]['image_shape']:
-                raise ValueError(f'Camera shape differs in {path}')
+            if episode['camera_shapes'] != episodes[0]['camera_shapes']:
+                raise ValueError(f'Camera sets or shapes differ in {path}; use --cameras to select common streams')
         episodes.append(episode)
         if limit is not None and len(episodes) >= limit:
             break
@@ -212,12 +235,18 @@ def features_for(episode):
             'shape': (len(names), ),
             'names': names
         },
-        'observation.images.ego': {
-            'dtype': 'video',
-            'shape': episode['image_shape'],
-            'names': ['height', 'width', 'channels']
-        },
     }
+    for name, shape in episode['camera_shapes'].items():
+        features[f'observation.images.{name}'] = {
+            'dtype': 'video', 'shape': shape, 'names': ['height', 'width', 'channels'],
+        }
+        features[f'source.{name}_render_time'] = {
+            'dtype': 'float64', 'shape': (1,), 'names': None,
+        }
+        if name != 'ego':
+            features[f'observation.{name}_camera_pose'] = {
+                'dtype': 'float32', 'shape': (7,), 'names': ['x', 'y', 'z', 'qw', 'qx', 'qy', 'qz'],
+            }
     for key, (_, width) in extras_for(episode['fruit']).items():
         features[key] = {
             'dtype': 'float32',
@@ -231,7 +260,7 @@ def features_for(episode):
             'names': None
         }
     for key in ('observation_wall_time', 'action_wall_time', 'simulation_time',
-                'action_received_wall_time', 'ego_render_time'):
+                'action_received_wall_time'):
         features[f'source.{key}'] = {
             'dtype': 'float64',
             'shape': (1, ),
@@ -275,7 +304,7 @@ def write_dataset(episodes, output, repo_id, fps, task, report):
                                                segment['action']):
                         row, action_row = int(row), int(action_row)
                         if cached_row != row:
-                            rgb = decode_image(data[IMAGE][row])
+                            rgb = {name: decode_image(data[image_path(name)][row]) for name in episode['cameras']}
                             cached_row = row
                         frame = {
                             'observation.state':
@@ -287,8 +316,7 @@ def write_dataset(episodes, output, repo_id, fps, task, report):
                                 data['actions/joint_position_target']
                                 [action_row],
                                 dtype=np.float32),
-                            'observation.images.ego':
-                            rgb,
+                            **{f'observation.images.{name}': image for name, image in rgb.items()},
                             'source.observation_row':
                             np.array([row]),
                             'source.action_row':
@@ -306,9 +334,12 @@ def write_dataset(episodes, output, repo_id, fps, task, report):
                             data['time/simulation'][row],
                             'action_received_wall_time':
                             data['actions/received_wall_time'][action_row],
-                            'ego_render_time':
-                            data['observations/images/ego_render_time'][row],
                         }
+                        for name in episode['cameras']:
+                            provenance[f'{name}_render_time'] = data[image_path(name, 'render_time')][row]
+                            if name != 'ego':
+                                frame[f'observation.{name}_camera_pose'] = np.asarray(
+                                    data[f'observations/cameras/{name}_world_pose'][row], dtype=np.float32)
                         for key, value in provenance.items():
                             frame[f'source.{key}'] = np.array([value],
                                                               dtype=np.float64)
@@ -340,11 +371,12 @@ def write_dataset(episodes, output, repo_id, fps, task, report):
                               loaded.episode_data_index['to']):
             for position in (int(boundaries[0]), int(boundaries[1]) - 1):
                 item = loaded[position]
-                if tuple(item['observation.images.ego'].shape) != (
-                        3, *episodes[0]['image_shape'][:2]):
-                    raise ValueError('LeRobot reader image shape mismatch')
+                for name, shape in episodes[0]['camera_shapes'].items():
+                    if tuple(item[f'observation.images.{name}'].shape) != (3, *shape[:2]):
+                        raise ValueError(f'LeRobot reader {name} image shape mismatch')
         report['validation'] = {
             'official_reader': True,
+            'cameras': episodes[0]['cameras'],
             'episodes': loaded.num_episodes,
             'frames': loaded.num_frames,
             'video_boundary_frames': 'passed',
@@ -372,6 +404,8 @@ def main():
     parser.add_argument('--repo-id', help='Default: local/wbc_<fruit>')
     parser.add_argument('--fruit', choices=tuple(TASKS), default='apple')
     parser.add_argument('--fps', type=int, default=30)
+    parser.add_argument('--cameras', nargs='+', choices=CAMERAS,
+                        help='Default: all recorded cameras; use ego for historical single-view data')
     parser.add_argument('--task', help='Default: the selected fruit placement task')
     parser.add_argument(
         '--outcomes',
@@ -405,7 +439,7 @@ def main():
         if args.output.resolve().is_relative_to(args.raw_dir.resolve()):
             parser.error('Output must be outside the raw HDF5 directory')
     episodes, skipped = scan(args.raw_dir, args.outcomes, args.fps,
-                             args.max_gap, args.action_alignment, args.limit, args.fruit)
+                             args.max_gap, args.action_alignment, args.limit, args.fruit, args.cameras)
     report = {
         'format':
         'LeRobot v2.1',
@@ -417,6 +451,7 @@ def main():
         args.task,
         'fruit':
         args.fruit,
+        'requested_cameras': args.cameras or 'auto',
         'outcomes':
         args.outcomes,
         'action_alignment':

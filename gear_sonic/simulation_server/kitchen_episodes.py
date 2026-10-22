@@ -16,6 +16,7 @@ import h5py
 import numpy as np
 
 from gear_sonic.utils.teleop.episode_control import EpisodeControlClient
+from gear_sonic.simulation_server.episode_cameras import EpisodeRGBCamera, create_wrist_cameras
 
 
 class PlacementDetector:
@@ -55,7 +56,7 @@ class Hdf5Episode:
         if self.count and set(row) != set(self.datasets):
             raise ValueError("episode row fields changed")
         for key, value in row.items():
-            is_image = key == "observations/images/ego_jpeg"
+            is_image = key.startswith("observations/images/") and key.endswith("_jpeg")
             value = np.frombuffer(value, dtype=np.uint8) if is_image else np.asarray(value)
             if key not in self.datasets:
                 if is_image:
@@ -100,7 +101,7 @@ class Hdf5Episode:
         self.path.unlink(missing_ok=True)
 
 
-class EpisodeEgoCamera:
+class EpisodeEgoCamera(EpisodeRGBCamera):
     """A separate RGB render product with the existing ego pose and optics."""
 
     def __init__(self, backend, intrinsics):
@@ -130,20 +131,6 @@ class EpisodeEgoCamera:
         for _ in range(8):
             backend.world.render()
 
-    def read(self):
-        import cv2
-
-        frame = self.camera.get_current_frame()
-        rgba = np.asarray(self.camera.get_rgba())
-        valid = rgba.shape == (480, 640, 4) and bool(np.any(rgba[:, :, :3]))
-        encoded = b""
-        if valid:
-            ok, jpeg = cv2.imencode(".jpg", cv2.cvtColor(rgba[:, :, :3], cv2.COLOR_RGB2BGR),
-                                    [cv2.IMWRITE_JPEG_QUALITY, 90])
-            valid = bool(ok)
-            if ok:
-                encoded = jpeg.tobytes()
-        return encoded, valid, int(frame.get("rendering_frame", -1)), float(frame.get("rendering_time", -1.0))
 
 
 class KitchenEpisodeCollector:
@@ -151,7 +138,8 @@ class KitchenEpisodeCollector:
 
     EPISODE_TIMEOUT_SECONDS = 180.0
 
-    def __init__(self, backend, directory, *, control_port=5564, hz=30.0, intrinsics=(620.8, 625.22, 320., 240.)):
+    def __init__(self, backend, directory, *, control_port=5564, hz=30.0, intrinsics=(620.8, 625.22, 320., 240.),
+                 wrist_cameras=False, wrist_camera_config=None):
         self.backend = backend
         self.directory = Path(directory)
         self.control_port = control_port
@@ -161,6 +149,10 @@ class KitchenEpisodeCollector:
         self.intrinsics = intrinsics
         self.client = None
         self.camera = None
+        self.wrist_enabled = wrist_cameras
+        self.wrist_camera_config = wrist_camera_config
+        self.wrist_cameras = {}
+        self.last_wrist_frames = {}
         self.writer = None
         self.phase = "IDLE"
         self.status = None
@@ -205,6 +197,10 @@ class KitchenEpisodeCollector:
 
     def start(self):
         self.camera = EpisodeEgoCamera(self.backend, self.intrinsics)
+        if self.wrist_enabled:
+            self.wrist_cameras = create_wrist_cameras(self.backend, self.wrist_camera_config)
+            for _ in range(8):
+                self.backend.world.render()
         self.client = EpisodeControlClient(self.control_port)
         self.started_at = time.monotonic()
         self.bodies = {body.prim_path: body for body in self.backend.scene_reset_bodies}
@@ -299,9 +295,12 @@ class KitchenEpisodeCollector:
             self._error(f"cannot begin recording: {exc!r}")
 
     def _begin(self):
-        _, valid, _, _ = self.camera.read()
+        _, valid, frame, stamp = self.camera.read()
+        for camera in self.wrist_cameras.values():
+            _, wrist_valid, wrist_frame, wrist_stamp = camera.read()
+            valid = valid and wrist_valid and wrist_frame == frame and abs(wrist_stamp - stamp) < 1e-6
         if not valid:
-            return  # Keep waiting for a real first-person frame, not black fallback data.
+            return  # Wait for real, synchronized frames from every enabled camera.
         self.token = uuid.uuid4().hex
         scene = Path(self.backend.scene_layer_path)
         self.writer = Hdf5Episode(self.directory, {
@@ -312,6 +311,7 @@ class KitchenEpisodeCollector:
             "physics_dt": self.backend.physics_dt, "scene_path": str(scene),
             "scene_sha256": hashlib.sha256(scene.read_bytes()).hexdigest(),
             "scene_usda": scene.read_text(), "camera": self.camera.metadata,
+            "cameras": {"ego": self.camera.metadata, **{name: camera.metadata for name, camera in self.wrist_cameras.items()}},
             "action_alignment": "last command applied before the observed physics step",
             "manager_session": self.session, "pose_epoch": self.status["pose_epoch"],
             "control_mode": getattr(self.backend.dds_bridge, "control_mode", "position"),
@@ -323,6 +323,7 @@ class KitchenEpisodeCollector:
         self.next_sample = self.backend._sim_time
         self.detector.since = None
         self.last_image_frame = -1
+        self.last_wrist_frames.clear()
         self.outcome = "success"
         self.recording_started_at = time.monotonic()
         self.phase = "RECORDING"
@@ -395,6 +396,17 @@ class KitchenEpisodeCollector:
             "task/plate_contact_force": np.float32(plate_force), "task/hand_contact_force": np.float32(hand_force),
             "manager/mode": np.int32({"OFF": 0, "POSE": 1, "PLANNER": 2, "PLANNER_FROZEN_UPPER_BODY": 3, "POSE_PAUSE": 4, "PLANNER_VR_3PT": 5}[self.status["mode"]]),
         }
+        for name, camera in self.wrist_cameras.items():
+            wrist_jpeg, wrist_valid, wrist_frame, wrist_time = camera.read()
+            synchronized = (wrist_frame == image_frame and abs(wrist_time - image_time) < 1e-6)
+            fresh = wrist_frame != self.last_wrist_frames.get(name, -1)
+            self.last_wrist_frames[name] = wrist_frame
+            prefix = f"observations/images/{name}"
+            row[f"{prefix}_jpeg"] = wrist_jpeg
+            row[f"{prefix}_valid"] = np.bool_(wrist_valid and fresh and synchronized and fresh_image)
+            row[f"{prefix}_render_frame"] = np.int64(wrist_frame)
+            row[f"{prefix}_render_time"] = np.float64(wrist_time)
+            row[f"observations/cameras/{name}_world_pose"] = camera.world_pose()
         for field in ("q", "dq", "kp", "kd", "tau"):
             row[f"actions/lowcmd_{field}"] = np.asarray(getattr(command, field) if command is not None else np.full(29, np.nan), dtype=np.float32)
         detection = dict(inside=inside, upright=upright, plate_contact=plate_force, hand_contact=hand_force,
@@ -416,3 +428,6 @@ class KitchenEpisodeCollector:
             self.writer.interrupt()
         if self.client is not None:
             self.client.close()
+        for camera in [self.camera, *self.wrist_cameras.values()]:
+            if camera is not None:
+                camera.close()

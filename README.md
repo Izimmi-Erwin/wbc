@@ -168,7 +168,7 @@ cd "$WBC_ROOT"
 
 1. 完成上述 `k → 9 → backspace`，等待机器人稳定。
 2. 保持中性标定姿态，按一次 **A+B+X+Y**，manager 标定并从 OFF 进入 PLANNER。
-3. **完全松开组合键**，再按一次 **A+X** 进入 POSE 跟踪。ego 图像就绪后开始记录本轮。
+3. **完全松开组合键**，再按一次 **A+X** 进入 POSE 跟踪。已启用的 ego 和双腕图像就绪且同步后开始记录本轮。
 4. 左右 Trigger 控制对应手的抓握。把苹果放进红盘子，松手并放稳。
 5. 系统确认成功后，要求 manager 切到 PLANNER 并等待确认，保存 HDF5，然后 reset。
 6. 看到 `reset complete; press A+X manually for the next episode`，再手动按一次 **A+X** 开始下一轮，无需重复初始化或标定。
@@ -202,7 +202,7 @@ A+X 使用组合键从未按下到按下的上升沿切换模式。自动结束�
 
 ## 图像与数据位置
 
-PICO 显示 GUI 的第三人称画面，**GUI 保持 Perspective（`/OmniverseKit_Persp`）**。它复用活动视口，切换 GUI 相机会影响头显画面。HDF5 使用独立 ego 第一人称相机，不占用 PICO 的图像端口。
+PICO 显示 GUI 的第三人称画面，**GUI 保持 Perspective（`/OmniverseKit_Persp`）**。它复用活动视口，切换 GUI 相机会影响头显画面。HDF5 使用独立 ego 第一人称相机和左右腕部相机，不占用 PICO 的图像端口。
 
 | 内容 | 位置 / 配置 |
 | --- | --- |
@@ -210,12 +210,57 @@ PICO 显示 GUI 的第三人称画面，**GUI 保持 Perspective（`/OmniverseKi
 | 正在记录或中断的文件 | 同目录 `*.partial.hdf5`，不用于成功示范转换 |
 | LeRobot 数据集 | `datasets/<数据集名>/` |
 | 厨房和物体资源 | `FluxBisim/assets/` |
-| ego 图像 | 640×480 RGB JPEG，独立写入 HDF5 |
+| ego / 左腕 / 右腕图像 | 各 640×480 RGB JPEG，独立写入 HDF5 |
 | 状态与控制 | 43 维关节状态 / 目标，另存 29 维身体 LowCmd、根节点及物体位姿 |
 
 仿真配置 200 Hz、HDF5 最高采样 30 Hz、PICO 图像发布请求 60 FPS，实际速率以时间戳为准。视频桥默认输出 30 FPS、2160×810；双眼复制同一张图像。
 
 ego 使用原 MJCF 相机姿态，内参 fx=620.80、fy=625.22、cx=320、cy=240，Isaac 以平均焦距近似（垂直 FOV 约 42.14°），裁剪范围 0.02～100 m。
+
+### 双腕相机与标定
+
+`run_wbc_kitchen.sh` 默认启用左右臂相机，目前安装在手腕附近。数据流及相机子节点沿用 `left_wrist` / `right_wrist` 名称。配置集中在
+[wrist_cameras.json](gear_sonic/data/cameras/wrist_cameras.json)，实现见
+[episode_cameras.py](gear_sonic/simulation_server/episode_cameras.py)。修改配置后重启仿真端生效。
+
+**这些是 WBC 仿真默认参数，不是 SonicStar 实机标定。** 核对的 SonicStar 版本为
+[`d4822352`](https://github.com/BlackOtters/SonicStar/tree/d4822352a13ad246cd94e1caf8fb63576a8cf2d6)：
+[composed_camera.py](https://github.com/BlackOtters/SonicStar/blob/d4822352a13ad246cd94e1caf8fb63576a8cf2d6/wbc/gear_sonic/camera/composed_camera.py)
+提供可选的左右腕相机设备接入，
+[launch_data_collection.py](https://github.com/BlackOtters/SonicStar/blob/d4822352a13ad246cd94e1caf8fb63576a8cf2d6/wbc/gear_sonic/scripts/launch_data_collection.py)
+提供 `record_wrist_cameras` 开关，但该公开版本没有给出腕部内参矩阵或安装外参。因此不能声称本配置复现了实机镜头。
+
+| 参数 | 左臂 | 右臂 |
+| --- | --- | --- |
+| 父节点 | `/World/G1/left_wrist_yaw_link` | `/World/G1/right_wrist_yaw_link` |
+| 相机子节点 | `episode_left_wrist_camera` | `episode_right_wrist_camera` |
+| 分辨率 | 640×480 | 640×480 |
+| fx / fy / cx / cy（像素） | 400 / 400 / 320 / 240 | 400 / 400 / 320 / 240 |
+| 相对手腕 XYZ（米） | (0.03, 0, 0.055) | (0.03, 0, 0.055) |
+| 相对手腕四元数 wxyz | (0.521334, 0.477714, -0.477714, -0.521334) | 相同 |
+| 裁剪范围 | 0.01～100 m | 0.01～100 m |
+
+两路内参矩阵均为 `K = [[400, 0, 320], [0, 400, 240], [0, 0, 1]]`，水平/垂直视场约 77.32°/61.93°；使用无畸变 pinhole 模型。
+安装外参是 `T_wrist_cameraUSD`，相机 USD 坐标为 X 向右、Y 向上、−Z 向前。
+镜头位于手腕局部 +X（朝手指）3 cm、+Z 5.5 cm，光轴沿局部 +X 朝 −Z 下倾 5°，保留抬高后的视角。相机跟随手腕转动。
+当前配置只支持中心主点、方形像素、零畸变，其他标定值会明确报错，需要另行适配投影模型。
+
+每个 HDF5 的 `metadata_json.cameras` 双腕条目保存实际 K、安装位姿、坐标约定和参数来源；
+`observations/cameras/{left_wrist,right_wrist}_world_pose` 保存采样时的世界光学位姿
+`T_world_cameraOptical`（XYZ 米 + wxyz；光学 X 右、Y 下、Z 前）。位姿对应状态采样时刻，图像时刻以各自 `*_render_time` 为准。
+三路有独立 render product，共用 Fabric 渲染帧号；重复、未就绪或与 ego 不同步的腕部帧会标为无效。
+
+更换配置或临时关闭腕部录制：
+
+```bash
+./run_wbc_kitchen.sh --isaac-wrist-camera-config /path/to/wrist_cameras.json
+./run_wbc_kitchen.sh --no-isaac-episode-wrist-cameras
+```
+
+增加两路渲染及 JPEG 编码会增加 GPU、CPU 和存储负载，实际采样频率以 HDF5 时间戳为准。
+GUI 可临时选择上述相机检查视野，但正式遥操时切回 Perspective，以保持 PICO 画面。
+首次正式采集前，应移动双腕检查手部遮挡、近距离物体是否入镜，并采集短片确认同步有效率。
+
 
 ### 采集判据与文件字段
 
@@ -260,6 +305,9 @@ ego 使用原 MJCF 相机姿态，内参 fx=620.80、fy=625.22、cx=320、cy=240
 | `objects/apple_velocity`, `plate_velocity` | 世界坐标线速度 + 角速度 |
 | `observations/images/ego_jpeg` | 每帧 JPEG 字节，解码为 640×480 RGB |
 | `observations/images/ego_valid`, `ego_render_frame`, `ego_render_time` | 图像有效性、渲染帧编号、渲染时间；重复/未就绪图像会显式标记无效 |
+| `observations/images/{left_wrist,right_wrist}_jpeg` | 启用双腕时记录的独立 JPEG 字节 |
+| `observations/images/{left_wrist,right_wrist}_{valid,render_frame,render_time}` | 每路有效性、帧号和时间 |
+| `observations/cameras/{left_wrist,right_wrist}_world_pose` | 世界光学位姿，XYZ 米 + wxyz |
 | `task/plate_contact_force`, `hand_contact_force` | 苹果与盘子、手部的接触力（N） |
 | `manager/mode` | OFF=0、POSE=1、PLANNER=2、FROZEN=3、POSE_PAUSE=4、VR_3PT=5 |
 
@@ -268,7 +316,7 @@ metadata 包含机器人型号、关节名、控制模式、场景 USD 文本及
 训练数据应筛选 `complete=True`、`success=True`，并检查逐帧的动作和图像有效标记。
 
 相机是独立的 `/World/G1/torso_link/episode_ego_camera`（实际父节点来自原 MJCF 配置），
-使用现有 ego 的位置、朝向、内参和裁剪面；光学配置见 README。
+使用现有 ego 的位置、朝向、内参和裁剪面；双腕节点及参数见上方「双腕相机与标定」。
 它有自己的 render product，不绑定 GUI 当前视口，不占用 `5555`，也不改变 PICO 第三人称视频。
 
 ```python
@@ -332,17 +380,33 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
   --fps 30
 ```
 
-默认仅选择完整成功轮次。测试超时数据时显式加 `--outcomes timeout` 并使用新输出目录；超时不能当作成功示范。转换保留 43 维 state/action，图像字段为 `observation.images.ego`，不修改原 HDF5，也不上传数据。
+默认仅选择完整成功轮次。测试超时数据时显式加 `--outcomes timeout` 并使用新输出目录；超时不能当作成功示范。转换保留 43 维 state/action 和所选相机视频，不修改原 HDF5，也不上传数据。
 
 输出 30 FPS 使用已有观测重采样，不会增加真实采样信息。字段、动作对齐、筛选及环境安装见 [转换字段与时间对齐](#转换字段与时间对齐)。
+
+转换器默认识别源文件的全部相机。同一次转换中的相机集合与各路尺寸必须一致；混合单 ego / 三路文件时会报错，需分开转换或明确选择公共视角。
+旧文件没有腕部图像，无法补出；指定双腕时会跳过缺少所选相机的文件。
+
+只用双腕视频训练时，可导出：
+
+```bash
+work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
+  work_dirs/kitchen_episodes \
+  --cameras left_wrist right_wrist \
+  --output datasets/wbc_apple_wrists --repo-id local/wbc_apple_wrists
+```
+
+保留三路使用 `--cameras ego left_wrist right_wrist`；旧单视角数据可用 `--cameras ego`。
+训练配置需把 `observation.images.left_wrist`、`observation.images.right_wrist` 加入视觉输入，并启用对应的多视角编码。
+仅增加数据集字段不会让现有只读取 ego 的训练配置自动使用双腕，也不等于完成 SonicStar latent-action 训练适配。
 
 ### 转换字段与时间对齐
 
 默认 `--fruit apple`，新 HDF5 写入 `objects/apple_pose` 和 `objects/apple_velocity`，LeRobot 使用对应的 `observation.apple_*` 字段。历史香蕉 HDF5 仍可通过 `--fruit banana` 转换；该选项同时选择香蕉字段和默认任务描述，不会把旧数据改标为苹果。每次转换只选择一种物体，输出目录需分别命名。
 
-转换器支持 schema_version=1、position 控制模式、43 关节和一台 ego 相机。默认仅接收完整的 `outcome=success`、`success=True` 文件；`--outcomes timeout` 用于超时测试数据，`--limit 1` 可只转换一条合格源文件。旧 `manual_reset`、`test_timeout` 和 partial 文件不纳入转换。
+转换器支持 schema_version=1、position 控制模式、43 关节，以及 ego / left_wrist / right_wrist 相机。默认仅接收完整的 `outcome=success`、`success=True` 文件；`--outcomes timeout` 用于超时测试数据，`--limit 1` 可只转换一条合格源文件。旧 `manual_reset`、`test_timeout` 和 partial 文件不纳入转换。
 
-输出目录必须不存在，暂不支持追加。没有合格轨迹时不会创建空数据集。需要训练 43 维 state/action 和 `observation.images.ego`，不能直接套用 ALOHA 的 14 维输入配置。转换依赖固定 LeRobot commit `55198de096f46a8e0447a8795129dd9ee84c088c`。
+输出目录必须不存在，暂不支持追加。没有合格轨迹时不会创建空数据集。需要训练 43 维 state/action 和所选的图像字段，不能直接套用 ALOHA 的 14 维输入配置。转换依赖固定 LeRobot commit `55198de096f46a8e0447a8795129dd9ee84c088c`。
 
 <details>
 <summary>展开字段映射、重采样和动作对齐规则</summary>
@@ -354,6 +418,9 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
 | `observation.state`                                       | `observations/joint_position`，43 维    |
 | `action`                                                  | `actions/joint_position_target`，43 维  |
 | `observation.images.ego`                                  | `observations/images/ego_jpeg`，RGB MP4 |
+| `observation.images.left_wrist`, `observation.images.right_wrist` | 对应腕部 JPEG 转为各自 RGB MP4 |
+| `observation.left_wrist_camera_pose`, `observation.right_wrist_camera_pose` | 世界光学位姿 |
+| `source.left_wrist_render_time`, `source.right_wrist_render_time` | 对应腕部渲染时间 |
 | `observation.joint_velocity`                              | 43 维关节速度                           |
 | `observation.root_pose`, `root_velocity`                  | 根节点位姿、速度                        |
 | `observation.apple_pose`, `plate_pose`                   | 苹果、盘子 XYZ + wxyz                   |
@@ -380,7 +447,7 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
   片段末尾没有后续动作的部分会截掉。这只是稀疏样本的一步偏移，不能恢复丢失的
   中间控制指令，也不保证等同“立即下一帧动作”。训练前需明确所用监督定义。
 
-无效动作、NaN、无效/损坏图像、非 POSE 模式会剔除，并在相邻有效片段之间断开，
+无效动作、NaN、任一所选相机的无效/损坏/重复/不同步图像、非 POSE 模式会剔除，并在相邻有效片段之间断开，
 不把无效时间段两端拼在一起。源采样间隔超过 `--max-gap 0.5` 秒也会分段。
 若正常采集更稀疏，可显式调整该阈值；不建议用大阈值掩盖中断。
 
@@ -401,7 +468,7 @@ work_dirs/wbc_lerobot_env/bin/python tools/convert_wbc_hdf5_to_lerobot.py \
 脚本不上传到 Hugging Face，也不覆盖已有输出。
 
 格式可被 LeRobot 读取不代表能直接使用 ALOHA 模型：训练需配置 43 维 state/action、
-`observation.images.ego`，并显式选择是否使用速度和物体位姿等额外字段。
+所选的 `observation.images.*`，并显式选择是否使用速度和物体位姿等额外字段。
 
 
 </details>
@@ -671,9 +738,11 @@ cd /path/to/wbc
 export ISAAC_PYTHON="/path/to/isaac-sim-4.5.0/python.sh"
 PYTHONPATH="$PWD" "$ISAAC_PYTHON" -m unittest discover \
   -s gear_sonic/tests -p test_kitchen_episodes.py -v
+PYTHONPATH="$PWD" "$ISAAC_PYTHON" -m unittest discover \
+  -s gear_sonic/tests -p test_episode_cameras.py -v
 ```
 
-测试覆盖采集状态机和 HDF5 文件写入；实际 PICO 闭环遥操需在部署环境中验证。
+测试覆盖采集状态机、HDF5 写入、多视角同步过滤和单视角兼容。双腕安装父节点、光轴与相机参数已做静态检查，三路合成数据通过 LeRobot 官方 reader 解码；真实腕部视野、遮挡和性能尚待可用 GPU 环境验收，实际 PICO 闭环遥操也需单独验证。
 
 代码基于 GEAR-SONIC / GR00T-WholeBodyControl、SonicStar 与 FluxVLA 的相关实现。FluxBisim 代码采用 Apache-2.0，厨房资产标注 CC-BY-NC-4.0。算法、训练及其他上游用法见 [GR00T-WholeBodyControl 文档](https://nvlabs.github.io/GR00T-WholeBodyControl/)。厨房操作、采集和转换说明统一维护在本文。
 

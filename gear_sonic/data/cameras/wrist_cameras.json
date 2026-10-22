@@ -1,0 +1,84 @@
+{
+  "provenance": {
+    "kind": "simulation_defaults_not_measured",
+    "upstream": "https://github.com/BlackOtters/SonicStar",
+    "revision": "d4822352a13ad246cd94e1caf8fb63576a8cf2d6",
+    "note": "Upstream exposes optional wrist camera devices, but publishes no wrist calibration. These intrinsics and mounts are WBC simulation defaults."
+  },
+  "cameras": {
+    "left_wrist": {
+      "parent_link": "left_wrist_yaw_link",
+      "resolution": [
+        640,
+        480
+      ],
+      "intrinsics": [
+        400.0,
+        400.0,
+        320.0,
+        240.0
+      ],
+      "distortion_model": "pinhole",
+      "distortion_coefficients": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "local_position": [
+        0.03,
+        0.0,
+        0.055
+      ],
+      "local_quaternion_wxyz": [
+        0.5213338044735969,
+        0.47771441710826085,
+        -0.47771441710826085,
+        -0.5213338044735969
+      ],
+      "camera_axes": "usd",
+      "clipping_range": [
+        0.01,
+        100.0
+      ]
+    },
+    "right_wrist": {
+      "parent_link": "right_wrist_yaw_link",
+      "resolution": [
+        640,
+        480
+      ],
+      "intrinsics": [
+        400.0,
+        400.0,
+        320.0,
+        240.0
+      ],
+      "distortion_model": "pinhole",
+      "distortion_coefficients": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "local_position": [
+        0.03,
+        0.0,
+        0.055
+      ],
+      "local_quaternion_wxyz": [
+        0.5213338044735969,
+        0.47771441710826085,
+        -0.47771441710826085,
+        -0.5213338044735969
+      ],
+      "camera_axes": "usd",
+      "clipping_range": [
+        0.01,
+        100.0
+      ]
+    }
+  }
+}

@@ -33,5 +33,6 @@ exec "$ISAAC_PYTHON" gear_sonic/scripts/run_sim_loop.py \
     --isaac-initial-root-x -0.10 --isaac-initial-root-y -1.90 \
     --isaac-initial-root-yaw -9 \
     --isaac-initial-root-height 0.757 \
+    --isaac-episode-wrist-cameras \
     --isaac-episode-directory "$WBC_ROOT/work_dirs/kitchen_episodes" \
     "$@"
